@@ -55,12 +55,26 @@ class MainActivity : ComponentActivity() {
 
     private var isActivityVisible = false
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var lastLockerTriggerTimeMs = 0L
+    private var lastActivityStartTimeMs = 0L
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
     private val strictLockRunnable = object : Runnable {
         override fun run() {
             if (::viewModel.isInitialized) {
                 if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value && !isActivityVisible) {
-                    triggerStrictLocker()
-                    handler.postDelayed(this, 2000)
+                    // Only continue the background loop if overlay permission is granted
+                    // This prevents app loop spam if permission is not available or if they are in settings
+                    if (viewModel.isOverlayPermissionGranted()) {
+                        triggerStrictLocker()
+                        handler.postDelayed(this, 4000)
+                    } else {
+                        android.util.Log.w("MainActivity", "Overlay permission not granted; pausing strict background loop.")
+                    }
                 }
             }
         }
@@ -84,21 +98,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        triggerStrictLocker()
-        scheduleStrictLockLoop()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        triggerStrictLocker()
+        // Asynchronously schedule the check instead of immediately launching activity during gesture transition.
+        // This completely eliminates window manager race conditions and InputDispatcher broken channels.
         scheduleStrictLockLoop()
     }
 
     private fun scheduleStrictLockLoop() {
         if (::viewModel.isInitialized) {
             if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value) {
-                handler.removeCallbacks(strictLockRunnable)
-                handler.postDelayed(strictLockRunnable, 1500)
+                // Only schedule the continuous lock loop if the permission is actually granted
+                if (viewModel.isOverlayPermissionGranted()) {
+                    handler.removeCallbacks(strictLockRunnable)
+                    handler.postDelayed(strictLockRunnable, 2000)
+                }
             }
         }
     }
@@ -107,22 +119,35 @@ class MainActivity : ComponentActivity() {
         if (::viewModel.isInitialized) {
             try {
                 if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value) {
-                    viewModel.playStrictWarningAlarm()
-                    android.widget.Toast.makeText(
-                        this, 
-                        "🔒 专注严格模式已开启！请专注于当前任务！", 
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
+                    val currentTime = System.currentTimeMillis()
+                    // 7-second cooldown for Toast and alarm feedback to prevent thread/message queue flooding
+                    val shouldAlert = (currentTime - lastLockerTriggerTimeMs) > 7000L
+
+                    if (shouldAlert) {
+                        lastLockerTriggerTimeMs = currentTime
+                        viewModel.playStrictWarningAlarm()
+                        android.widget.Toast.makeText(
+                            this, 
+                            "🔒 专注严格模式已开启！请专注于当前任务！", 
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
 
                     if (viewModel.isOverlayPermissionGranted()) {
-                        val intent = android.content.Intent(this, MainActivity::class.java).apply {
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or 
-                                     android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or 
-                                     android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                        val currentMs = System.currentTimeMillis()
+                        if (currentMs - lastActivityStartTimeMs > 3000L) {
+                            lastActivityStartTimeMs = currentMs
+                            val intent = android.content.Intent(this, MainActivity::class.java).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or 
+                                         android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or 
+                                         android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                            }
+                            startActivity(intent)
+                        } else {
+                            android.util.Log.d("MainActivity", "Throttled background activity launch to avoid WindowManager/InputDispatcher stress.")
                         }
-                        startActivity(intent)
                     } else {
-                        android.util.Log.w("MainActivity", "Overlay permission not granted; skipping background activity start to avoid OS termination.")
+                        android.util.Log.w("MainActivity", "Overlay permission not granted; skipped background activity re-entry to avoid crash/OS termination.")
                     }
                 }
             } catch (e: Exception) {

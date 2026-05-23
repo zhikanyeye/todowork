@@ -7,7 +7,6 @@ import android.media.ToneGenerator
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
-import android.os.VibratorManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -450,22 +449,20 @@ class PomodoroViewModel(
         // Sound and vibration feedback
         if (soundEnabled.value) {
             try {
-                val toneG = ToneGenerator(AudioManager.STREAM_ALARM, 100)
-                toneG.startTone(ToneGenerator.TONE_CDMA_HIGH_L, 1200) // Vibrate beep sound
+                if (toneGenerator == null) {
+                    toneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 100)
+                }
+                toneGenerator?.startTone(ToneGenerator.TONE_CDMA_HIGH_L, 1200) // Vibrate beep sound
             } catch (e: Exception) {
                 Log.e("PomodoroViewModel", "Failed to trigger ToneGenerator sound", e)
+                toneGenerator = null
             }
         }
 
         if (vibrationEnabled.value) {
             try {
-                val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                    vibratorManager.defaultVibrator
-                } else {
-                    @Suppress("DEPRECATION")
-                    context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                }
+                @Suppress("DEPRECATION")
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val pattern = longArrayOf(0, 300, 200, 300, 200, 400)
@@ -531,13 +528,8 @@ class PomodoroViewModel(
         }
         if (vibrationEnabled.value) {
             try {
-                val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                    vibratorManager.defaultVibrator
-                } else {
-                    @Suppress("DEPRECATION")
-                    context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                }
+                @Suppress("DEPRECATION")
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibrator.vibrate(VibrationEffect.createOneShot(800, VibrationEffect.DEFAULT_AMPLITUDE))
                 } else {
