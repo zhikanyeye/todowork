@@ -1,0 +1,6 @@
+{
+  "name": "番茄智伴",
+  "description": "一个全功能番茄闹钟和任务管理工具，支持同步至手机系统日历，并提供跨平台数据实时备份与恢复功能。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
