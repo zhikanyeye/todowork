@@ -70,6 +70,17 @@ class PomodoroViewModel(
     var dndEnabled = MutableStateFlow(false)
     var strictModeEnabled = MutableStateFlow(false)
 
+    // Dynamic procedural wallpapers and immersive screen focus preferences
+    enum class WallpaperType(val displayName: String) {
+        NONE("简约极客 (纯色/渐变)"),
+        FOREST("晨曦森林 (松影幽静)"),
+        COSMIC("深空星云 (绚烂繁星)"),
+        RAINY("窗前夜雨 (氤氲霓虹)"),
+        COCOA("温暖可可 (秋日暖泥)")
+    }
+    var selectedWallpaper = MutableStateFlow(WallpaperType.NONE)
+    var immersiveFocusEnabled = MutableStateFlow(false)
+
     // Sync State
     private val _backupCode = MutableStateFlow<String?>(null)
     val backupCode: StateFlow<String?> = _backupCode.asStateFlow()

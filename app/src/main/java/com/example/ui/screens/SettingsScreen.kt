@@ -5,6 +5,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -252,6 +253,48 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Section 0: Ambient focus wallpaper preset
+                Text(
+                    text = "🎨 艺术氛围心流壁纸",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "在番茄专注时充当背景屏，消除繁杂视觉噪音，提供优雅的环境氛围图层",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val currentWallpaper by viewModel.selectedWallpaper.collectAsStateWithLifecycle()
+                val wallpaperScrollState = rememberScrollState()
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(wallpaperScrollState)
+                        .padding(vertical = 4.dp)
+                ) {
+                    com.example.ui.viewmodel.PomodoroViewModel.WallpaperType.values().forEach { wp ->
+                        val isWpSelected = currentWallpaper == wp
+                        FilterChip(
+                            selected = isWpSelected,
+                            onClick = { viewModel.selectedWallpaper.value = wp },
+                            label = { Text(wp.displayName, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Section 1: Background noises Selection
