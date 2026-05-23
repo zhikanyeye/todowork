@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -24,10 +25,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,6 +68,13 @@ fun PomodoroScreen(
 
     var showTaskSelector by remember { mutableStateOf(false) }
     var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+    var immersiveControlsVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(immersiveFocusEnabled) {
+        if (immersiveFocusEnabled) {
+            immersiveControlsVisible = false
+        }
+    }
 
     // Format Remaining Time to MM:SS
     val formattedTime = remember(remainingTimeMs) {
@@ -95,200 +105,187 @@ fun PomodoroScreen(
 
         // 2. Immersive Focus Overlay when enabled
         if (immersiveFocusEnabled) {
-            // Dark elegant overlay mask to elevate readability
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.52f))
-            )
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .windowInsetsPadding(WindowInsets.navigationBars)
+            val baseDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(baseDensity.density, fontScale = 1f)
             ) {
-                // Top control bar
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = { viewModel.immersiveFocusEnabled.value = false },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                    ) {
-                        Icon(Icons.Default.FullscreenExit, contentDescription = "退出全屏")
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("退出沉浸", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-
-                    // On-the-fly wallpaper style cycle toggle directly on focus screen
-                    FilledTonalButton(
-                        onClick = {
-                            val values = PomodoroViewModel.WallpaperType.values()
-                            val nextOrdinal = (selectedWallpaper.ordinal + 1) % values.size
-                            viewModel.selectedWallpaper.value = values[nextOrdinal]
-                        },
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color.White.copy(alpha = 0.15f),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Palette,
-                            contentDescription = "切壁纸",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(selectedWallpaper.displayName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(0.5f))
-
-                // Active task indicator
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.46f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            immersiveControlsVisible = !immersiveControlsVisible
+                        }
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .windowInsetsPadding(WindowInsets.navigationBars)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.LocalFireDepartment,
-                        contentDescription = null,
-                        tint = progressColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = selectedTask?.title ?: "自由专注中",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Giant focus countdown lock clock
-                Text(
-                    text = formattedTime,
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontSize = 92.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-2).sp
-                    ),
-                    color = Color.White,
-                    textAlign = TextAlign.Center
-                )
-
-                // Sub-mode description
-                Text(
-                    text = if (isBreak) "休息调养，蓄势待发" else "心流爆发，深度创造",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                // Interactive ambient sound switcher label
-                Card(
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.clickable {
-                        // Click to cycle sounds
-                        val sounds = com.example.data.audio.AmbientAudioSynth.SoundType.values()
-                        val nextIdx = (bgSoundType.ordinal + 1) % sounds.size
-                        viewModel.setSoundType(sounds[nextIdx])
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Screen-saver layer: only wallpaper plus the countdown clock.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         Text(
-                            text = "🔊 ${bgSoundType.displayName}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "切换静音",
-                            modifier = Modifier.size(12.dp),
-                            tint = Color.White.copy(alpha = 0.7f)
+                            text = formattedTime,
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontSize = 86.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.sp
+                            ),
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Soft controller overlay
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 32.dp)
-                ) {
-                    // Reset Button
-                    IconButton(
-                        onClick = { viewModel.resetTimer() },
+                    AnimatedVisibility(
+                        visible = immersiveControlsVisible,
+                        enter = fadeIn(tween(180)) + slideInVertically(
+                            animationSpec = tween(180),
+                            initialOffsetY = { -it / 4 }
+                        ),
+                        exit = fadeOut(tween(160)),
                         modifier = Modifier
-                            .size(52.dp)
-                            .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "重置专注",
-                            tint = Color.White
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = { viewModel.immersiveFocusEnabled.value = false },
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                            ) {
+                                Icon(Icons.Default.FullscreenExit, contentDescription = "退出全屏")
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("退出", fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                            }
+
+                            FilledTonalButton(
+                                onClick = {
+                                    val values = PomodoroViewModel.WallpaperType.values()
+                                    val nextOrdinal = (selectedWallpaper.ordinal + 1) % values.size
+                                    viewModel.selectedWallpaper.value = values[nextOrdinal]
+                                },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = Color.White.copy(alpha = 0.14f),
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = "切壁纸",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("壁纸", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            }
+                        }
                     }
 
-                    // Play/Pause FAB
-                    LargeFloatingActionButton(
-                        onClick = {
-                            if (isRunning) {
-                                viewModel.pauseTimer()
-                            } else {
-                                if (strictActiveActive && !viewModel.isOverlayPermissionGranted()) {
-                                    showOverlayPermissionDialog = true
-                                } else {
-                                    viewModel.startTimer()
+                    AnimatedVisibility(
+                        visible = immersiveControlsVisible,
+                        enter = fadeIn(tween(180)) + slideInVertically(
+                            animationSpec = tween(180),
+                            initialOffsetY = { it / 3 }
+                        ),
+                        exit = fadeOut(tween(160)),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(horizontal = 20.dp, vertical = 28.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(Color.Black.copy(alpha = 0.28f))
+                                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = progressColor,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = selectedTask?.title ?: if (isBreak) "休息中" else "自由专注",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    maxLines = 1
+                                )
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { viewModel.resetTimer() },
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .background(Color.White.copy(alpha = 0.12f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "重置专注",
+                                        tint = Color.White
+                                    )
+                                }
+
+                                LargeFloatingActionButton(
+                                    onClick = {
+                                        if (isRunning) {
+                                            viewModel.pauseTimer()
+                                        } else {
+                                            if (strictActiveActive && !viewModel.isOverlayPermissionGranted()) {
+                                                showOverlayPermissionDialog = true
+                                            } else {
+                                                viewModel.startTimer()
+                                            }
+                                        }
+                                    },
+                                    shape = CircleShape,
+                                    containerColor = Color.White,
+                                    contentColor = Color.Black,
+                                    modifier = Modifier.size(72.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (isRunning) "暂停" else "开始",
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = { viewModel.skipSession() },
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .background(Color.White.copy(alpha = 0.12f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SkipNext,
+                                        contentDescription = "跳过",
+                                        tint = Color.White
+                                    )
                                 }
                             }
-                        },
-                        shape = CircleShape,
-                        containerColor = Color.White,
-                        contentColor = Color.Black,
-                        modifier = Modifier.size(72.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isRunning) "暂停" else "开始",
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-
-                    // Skip Button
-                    IconButton(
-                        onClick = { viewModel.skipSession() },
-                        modifier = Modifier
-                            .size(52.dp)
-                            .background(Color.White.copy(alpha = 0.1f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SkipNext,
-                            contentDescription = "跳过",
-                            tint = Color.White
-                        )
+                        }
                     }
                 }
             }

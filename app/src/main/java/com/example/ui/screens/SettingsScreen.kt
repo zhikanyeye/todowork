@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -143,129 +145,54 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Work Duration Config Section with Edit Option
-                Column {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                durationTextInput = workMins.toString()
-                                activeEditingDurationType = "work"
-                            }
-                            .padding(vertical = 6.dp, horizontal = 4.dp)
-                    ) {
-                        Text(text = "工作周期时长 (点击手动修改)", style = MaterialTheme.typography.bodyMedium)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "$workMins 分钟",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "手动输入工作周期",
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                    Slider(
-                        value = workMins.toFloat().coerceIn(5f, 60f),
-                        onValueChange = { viewModel.workDurationMinutes.value = it.roundToInt() },
-                        valueRange = 5f..60f,
-                        steps = 11,
-                        modifier = Modifier.testTag("work_duration_slider")
-                    )
-                }
+                DurationSettingItem(
+                    title = "工作周期",
+                    helperText = "点击卡片可手动输入分钟数",
+                    minutes = workMins,
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    valueRange = 5f..60f,
+                    steps = 11,
+                    testTag = "work_duration_slider",
+                    onEdit = {
+                        durationTextInput = workMins.toString()
+                        activeEditingDurationType = "work"
+                    },
+                    onSliderChange = { viewModel.workDurationMinutes.value = it.roundToInt() }
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Break Duration Config Section with Edit Option
-                Column {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                durationTextInput = breakMins.toString()
-                                activeEditingDurationType = "break"
-                            }
-                            .padding(vertical = 6.dp, horizontal = 4.dp)
-                    ) {
-                        Text(text = "短休息周期时长 (点击手动修改)", style = MaterialTheme.typography.bodyMedium)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "$breakMins 分钟",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "手动输入短休息周期",
-                                tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                    Slider(
-                        value = breakMins.toFloat().coerceIn(1f, 20f),
-                        onValueChange = { viewModel.breakDurationMinutes.value = it.roundToInt() },
-                        valueRange = 1f..20f,
-                        steps = 19,
-                        modifier = Modifier.testTag("break_duration_slider")
-                    )
-                }
+                DurationSettingItem(
+                    title = "短休息周期",
+                    helperText = "完成一轮专注后的短暂恢复",
+                    minutes = breakMins,
+                    accentColor = MaterialTheme.colorScheme.secondary,
+                    valueRange = 1f..20f,
+                    steps = 19,
+                    testTag = "break_duration_slider",
+                    onEdit = {
+                        durationTextInput = breakMins.toString()
+                        activeEditingDurationType = "break"
+                    },
+                    onSliderChange = { viewModel.breakDurationMinutes.value = it.roundToInt() }
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Long Break Duration Config Section with Edit Option
-                Column {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                durationTextInput = longBreakMins.toString()
-                                activeEditingDurationType = "long_break"
-                            }
-                            .padding(vertical = 6.dp, horizontal = 4.dp)
-                    ) {
-                        Text(text = "长休息周期时长 (点击手动修改)", style = MaterialTheme.typography.bodyMedium)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "$longBreakMins 分钟",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "手动输入长休息周期",
-                                tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                    Slider(
-                        value = longBreakMins.toFloat().coerceIn(5f, 40f),
-                        onValueChange = { viewModel.longBreakDurationMinutes.value = it.roundToInt() },
-                        valueRange = 5f..40f,
-                        steps = 7,
-                        modifier = Modifier.testTag("long_break_duration_slider")
-                    )
-                }
+                DurationSettingItem(
+                    title = "长休息周期",
+                    helperText = "连续专注后的深度恢复时长",
+                    minutes = longBreakMins,
+                    accentColor = MaterialTheme.colorScheme.tertiary,
+                    valueRange = 5f..40f,
+                    steps = 7,
+                    testTag = "long_break_duration_slider",
+                    onEdit = {
+                        durationTextInput = longBreakMins.toString()
+                        activeEditingDurationType = "long_break"
+                    },
+                    onSliderChange = { viewModel.longBreakDurationMinutes.value = it.roundToInt() }
+                )
             }
         }
 
@@ -478,9 +405,16 @@ fun SettingsScreen(
                                 val desc = when (sound) {
                                     com.example.data.audio.AmbientAudioSynth.SoundType.NONE -> "安静沉思，无杂音打扰"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.WHITE_NOISE -> "低频软灰音，有效拦截高频耳部嘈杂"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.PINK_NOISE -> "更柔和的均衡噪音，适合阅读、写作和长时间专注"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.BROWN_NOISE -> "低频更厚的深色噪音，削弱环境人声和尖锐杂音"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.RAIN -> "细雨拍打小木屋，舒缓大脑焦虑思绪"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.OCEAN -> "心流海浪随呼吸规律潮汐波动，增强心肺协同"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.STREAM -> "细碎流动水声，适合轻任务和放松式专注"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.FAN -> "稳定风扇低鸣，适合遮蔽办公室和宿舍杂音"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.FIREPLACE -> "低沉火焰底噪叠加少量木柴噼啪，适合夜间专注"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.CAFE -> "模拟远处咖啡馆空间底噪，保留轻微人声氛围"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.SPACE_DRONE -> "低声部合成正弦波，开启全脑深港意识流"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.FOCUS_PAD -> "无版权合成和弦铺底，像极轻的纯音乐氛围层"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.CUSTOM -> "播放导入的本地 MP3/WAV 专注曲目，无限心流循环"
                                 }
                                 Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -886,6 +820,87 @@ fun SettingsScreen(
                     Text("取消")
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun DurationSettingItem(
+    title: String,
+    helperText: String,
+    minutes: Int,
+    accentColor: Color,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    testTag: String,
+    onEdit: () -> Unit,
+    onSliderChange: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onEdit)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = helperText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = accentColor.copy(alpha = 0.14f),
+                contentColor = accentColor
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .widthIn(min = 82.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "$minutes 分钟",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "手动输入$title",
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+
+        Slider(
+            value = minutes.toFloat().coerceIn(valueRange.start, valueRange.endInclusive),
+            onValueChange = onSliderChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(testTag)
         )
     }
 }

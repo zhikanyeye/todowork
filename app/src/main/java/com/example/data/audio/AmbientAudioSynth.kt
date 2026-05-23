@@ -21,9 +21,16 @@ object AmbientAudioSynth {
     enum class SoundType(val displayName: String) {
         NONE("无背景音"),
         WHITE_NOISE("深度全神 (白噪音)"),
+        PINK_NOISE("柔和遮蔽 (粉噪音)"),
+        BROWN_NOISE("低频安定 (棕噪音)"),
         RAIN("雨落屋檐 (白噪音雨)"),
         OCEAN("潮起潮落 (海浪舒缓)"),
+        STREAM("林间溪流 (清澈水声)"),
+        FAN("恒定风扇 (机械白噪)"),
+        FIREPLACE("炉火噼啪 (温暖木柴)"),
+        CAFE("咖啡馆底噪 (远处人声)"),
         SPACE_DRONE("太空宇宙 (专注脑波)"),
+        FOCUS_PAD("轻柔纯音乐 (无版权铺底)"),
         CUSTOM("自定义音乐 (导入外部音频)")
     }
 
@@ -69,10 +76,27 @@ object AmbientAudioSynth {
                 
                 // Keep track multipliers
                 var lastOut = 0f
+                var brownOut = 0f
+                var pinkB0 = 0f
+                var pinkB1 = 0f
+                var pinkB2 = 0f
+                var pinkB3 = 0f
+                var pinkB4 = 0f
+                var pinkB5 = 0f
+                var pinkB6 = 0f
                 var phaseTheta = 0.0
+                var waterPhase = 0.0
+                var fanPhase = 0.0
+                var cafePhase1 = 0.0
+                var cafePhase2 = 0.0
+                var crackle = 0f
                 var dronePhase1 = 0.0
                 var dronePhase2 = 0.0
                 var dronePhase3 = 0.0
+                var padPhase1 = 0.0
+                var padPhase2 = 0.0
+                var padPhase3 = 0.0
+                var padPhase4 = 0.0
 
                 while (isActive) {
                     for (i in buffer.indices) {
@@ -82,6 +106,23 @@ object AmbientAudioSynth {
                                 val filtered = lastOut + 0.35f * (noise - lastOut)
                                 lastOut = filtered
                                 filtered * 0.12f
+                            }
+                            SoundType.PINK_NOISE -> {
+                                val white = random.nextFloat() * 2f - 1f
+                                pinkB0 = 0.99886f * pinkB0 + white * 0.0555179f
+                                pinkB1 = 0.99332f * pinkB1 + white * 0.0750759f
+                                pinkB2 = 0.96900f * pinkB2 + white * 0.1538520f
+                                pinkB3 = 0.86650f * pinkB3 + white * 0.3104856f
+                                pinkB4 = 0.55000f * pinkB4 + white * 0.5329522f
+                                pinkB5 = -0.7616f * pinkB5 - white * 0.0168980f
+                                val pink = pinkB0 + pinkB1 + pinkB2 + pinkB3 + pinkB4 + pinkB5 + pinkB6 + white * 0.5362f
+                                pinkB6 = white * 0.115926f
+                                (pink * 0.035f).coerceIn(-0.22f, 0.22f)
+                            }
+                            SoundType.BROWN_NOISE -> {
+                                val white = random.nextFloat() * 2f - 1f
+                                brownOut = (brownOut + white * 0.018f).coerceIn(-1f, 1f)
+                                brownOut * 0.32f
                             }
                             SoundType.RAIN -> {
                                 val noise = random.nextFloat() * 2f - 1f
@@ -104,6 +145,53 @@ object AmbientAudioSynth {
                                 
                                 filtered * modulator.toFloat() * 0.28f
                             }
+                            SoundType.STREAM -> {
+                                waterPhase += (2.0 * java.lang.Math.PI * 0.42) / SAMPLE_RATE
+                                val ripple = ((Math.sin(waterPhase) + 1.0) / 2.0).toFloat()
+                                val noise = random.nextFloat() * 2f - 1f
+                                val filtered = lastOut + 0.18f * (noise - lastOut)
+                                lastOut = filtered
+
+                                var sparkle = 0f
+                                if (random.nextFloat() < 0.004f) {
+                                    sparkle = (random.nextFloat() * 2f - 1f) * 0.34f
+                                }
+                                (filtered * (0.12f + ripple * 0.12f) + sparkle * 0.18f)
+                            }
+                            SoundType.FAN -> {
+                                fanPhase += (2.0 * java.lang.Math.PI * 58.0) / SAMPLE_RATE
+                                phaseTheta += (2.0 * java.lang.Math.PI * 0.9) / SAMPLE_RATE
+                                val hum = Math.sin(fanPhase).toFloat() * 0.08f
+                                val bladePulse = Math.sin(phaseTheta).toFloat() * 0.025f
+                                val noise = random.nextFloat() * 2f - 1f
+                                val filtered = lastOut + 0.22f * (noise - lastOut)
+                                lastOut = filtered
+                                hum + bladePulse + filtered * 0.08f
+                            }
+                            SoundType.FIREPLACE -> {
+                                val emberNoise = random.nextFloat() * 2f - 1f
+                                val bed = lastOut + 0.045f * (emberNoise - lastOut)
+                                lastOut = bed
+                                if (random.nextFloat() < 0.0022f) {
+                                    crackle = random.nextFloat() * 0.85f
+                                }
+                                crackle *= 0.82f
+                                bed * 0.16f + crackle * (random.nextFloat() * 2f - 1f) * 0.45f
+                            }
+                            SoundType.CAFE -> {
+                                cafePhase1 += (2.0 * java.lang.Math.PI * 185.0) / SAMPLE_RATE
+                                cafePhase2 += (2.0 * java.lang.Math.PI * 246.0) / SAMPLE_RATE
+                                phaseTheta += (2.0 * java.lang.Math.PI * 0.23) / SAMPLE_RATE
+                                val roomMod = (0.55f + 0.45f * ((Math.sin(phaseTheta) + 1.0) / 2.0).toFloat())
+                                val noise = random.nextFloat() * 2f - 1f
+                                val murmur = lastOut + 0.035f * (noise - lastOut)
+                                lastOut = murmur
+                                val distantVoiceBand = (
+                                    Math.sin(cafePhase1).toFloat() * 0.025f +
+                                        Math.sin(cafePhase2).toFloat() * 0.018f
+                                    ) * roomMod
+                                murmur * 0.11f + distantVoiceBand
+                            }
                             SoundType.SPACE_DRONE -> {
                                 phaseTheta += (2.0 * java.lang.Math.PI * 0.05) / SAMPLE_RATE
                                 val modulator = (Math.sin(phaseTheta) + 1.0) / 2.0
@@ -123,6 +211,25 @@ object AmbientAudioSynth {
                                 lastOut = filtered
                                 
                                 (synthChord * 0.55f + filtered * 0.45f * modulator.toFloat()) * 0.13f
+                            }
+                            SoundType.FOCUS_PAD -> {
+                                phaseTheta += (2.0 * java.lang.Math.PI * 0.035) / SAMPLE_RATE
+                                val breath = (0.62f + 0.38f * ((Math.sin(phaseTheta) + 1.0) / 2.0).toFloat())
+                                padPhase1 += (2.0 * java.lang.Math.PI * 130.81) / SAMPLE_RATE
+                                padPhase2 += (2.0 * java.lang.Math.PI * 196.00) / SAMPLE_RATE
+                                padPhase3 += (2.0 * java.lang.Math.PI * 261.63) / SAMPLE_RATE
+                                padPhase4 += (2.0 * java.lang.Math.PI * 392.00) / SAMPLE_RATE
+
+                                val chord = (
+                                    Math.sin(padPhase1).toFloat() * 0.34f +
+                                        Math.sin(padPhase2).toFloat() * 0.28f +
+                                        Math.sin(padPhase3).toFloat() * 0.22f +
+                                        Math.sin(padPhase4).toFloat() * 0.16f
+                                    )
+                                val air = random.nextFloat() * 2f - 1f
+                                val filteredAir = lastOut + 0.04f * (air - lastOut)
+                                lastOut = filteredAir
+                                chord * breath * 0.10f + filteredAir * 0.018f
                             }
                             else -> 0f
                         }
