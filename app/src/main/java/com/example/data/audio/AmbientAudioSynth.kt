@@ -23,7 +23,8 @@ object AmbientAudioSynth {
         WHITE_NOISE("深度全神 (白噪音)"),
         RAIN("雨落屋檐 (白噪音雨)"),
         OCEAN("潮起潮落 (海浪舒缓)"),
-        SPACE_DRONE("太空宇宙 (专注脑波)")
+        SPACE_DRONE("太空宇宙 (专注脑波)"),
+        CUSTOM("自定义音乐 (导入外部音频)")
     }
 
     private var currentType = SoundType.NONE

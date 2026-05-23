@@ -58,11 +58,6 @@ class MainActivity : ComponentActivity() {
         triggerStrictLocker()
     }
 
-    override fun onPause() {
-        super.onPause()
-        triggerStrictLocker()
-    }
-
     private fun triggerStrictLocker() {
         if (::viewModel.isInitialized) {
             if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value) {

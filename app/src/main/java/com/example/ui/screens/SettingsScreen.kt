@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.ui.viewmodel.PomodoroViewModel
 import kotlin.math.roundToInt
 
@@ -49,6 +51,54 @@ fun SettingsScreen(
 
     val backupCode by viewModel.backupCode.collectAsStateWithLifecycle()
     val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
+
+    val customWallpaperUri by viewModel.customWallpaperUri.collectAsStateWithLifecycle()
+    val customMusicName by viewModel.customMusicName.collectAsStateWithLifecycle()
+
+    val wallpaperPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+            viewModel.saveCustomWallpaper(it.toString())
+            viewModel.setWallpaper(PomodoroViewModel.WallpaperType.CUSTOM)
+            Toast.makeText(context, "自定义壁纸已成功导入！", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val musicPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+            
+            var displayName = "自定义背景音乐"
+            context.contentResolver.query(it, null, null, null, null)?.use { cursor ->
+                val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIdx != -1 && cursor.moveToFirst()) {
+                    displayName = cursor.getString(nameIdx)
+                }
+            }
+            
+            viewModel.saveCustomMusic(it.toString(), displayName)
+            viewModel.setSoundType(com.example.data.audio.AmbientAudioSynth.SoundType.CUSTOM)
+            Toast.makeText(context, "自定义音乐 [ $displayName ] 导入成功！", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     var manualJsonRestoreText by remember { mutableStateOf("") }
     var restoreCodeInput by remember { mutableStateOf("") }
@@ -283,13 +333,56 @@ fun SettingsScreen(
                         val isWpSelected = currentWallpaper == wp
                         FilterChip(
                             selected = isWpSelected,
-                            onClick = { viewModel.selectedWallpaper.value = wp },
+                            onClick = { viewModel.setWallpaper(wp) },
                             label = { Text(wp.displayName, fontSize = 12.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         )
+                    }
+                }
+
+                if (currentWallpaper == com.example.ui.viewmodel.PomodoroViewModel.WallpaperType.CUSTOM) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "自定义壁纸源",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (!customWallpaperUri.isNullOrEmpty()) "已导入图片：${customWallpaperUri?.takeLast(35)}..." else "暂未选择，显示渐变色默认底图",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Button(
+                            onClick = { 
+                                try {
+                                    wallpaperPickerLauncher.launch(arrayOf("image/*"))
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "打开系统相册失败：${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("上传本地图片", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 
@@ -308,33 +401,71 @@ fun SettingsScreen(
                 
                 com.example.data.audio.AmbientAudioSynth.SoundType.values().forEach { sound ->
                     val isSelected = bgSound == sound
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.bgSoundType.value = sound }
-                            .padding(vertical = 6.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = isSelected,
-                            onClick = { viewModel.bgSoundType.value = sound }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = sound.displayName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.setSoundType(sound) }
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { viewModel.setSoundType(sound) }
                             )
-                            val desc = when (sound) {
-                                com.example.data.audio.AmbientAudioSynth.SoundType.NONE -> "安静沉思，无杂音打扰"
-                                com.example.data.audio.AmbientAudioSynth.SoundType.WHITE_NOISE -> "低频软灰音，有效拦截高频耳部嘈杂"
-                                com.example.data.audio.AmbientAudioSynth.SoundType.RAIN -> "细雨拍打小木屋，舒缓大脑焦虑思绪"
-                                com.example.data.audio.AmbientAudioSynth.SoundType.OCEAN -> "心流海浪随呼吸规律潮汐波动，增强心肺协同"
-                                com.example.data.audio.AmbientAudioSynth.SoundType.SPACE_DRONE -> "低声部合成正弦波，开启全脑深港意识流"
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = sound.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                                val desc = when (sound) {
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.NONE -> "安静沉思，无杂音打扰"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.WHITE_NOISE -> "低频软灰音，有效拦截高频耳部嘈杂"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.RAIN -> "细雨拍打小木屋，舒缓大脑焦虑思绪"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.OCEAN -> "心流海浪随呼吸规律潮汐波动，增强心肺协同"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.SPACE_DRONE -> "低声部合成正弦波，开启全脑深港意识流"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.CUSTOM -> "播放导入的本地 MP3/WAV 专注曲目，无限心流循环"
+                                }
+                                Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        if (sound == com.example.data.audio.AmbientAudioSynth.SoundType.CUSTOM && isSelected) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 48.dp, end = 4.dp, bottom = 8.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = if (!customMusicName.isNullOrEmpty()) "已导入音频：$customMusicName" else "暂未选择音频文件，播放静音",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                )
+                                TextButton(
+                                    onClick = {
+                                        try {
+                                            musicPickerLauncher.launch(arrayOf("audio/*"))
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "打开文件选择器失败：${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Icon(Icons.Default.AudioFile, contentDescription = null, modifier = Modifier.size(12.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("选择本地音频", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }

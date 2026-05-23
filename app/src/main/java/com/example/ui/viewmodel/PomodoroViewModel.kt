@@ -76,10 +76,19 @@ class PomodoroViewModel(
         FOREST("晨曦森林 (松影幽静)"),
         COSMIC("深空星云 (绚烂繁星)"),
         RAINY("窗前夜雨 (氤氲霓虹)"),
-        COCOA("温暖可可 (秋日暖泥)")
+        COCOA("温暖可可 (秋日暖泥)"),
+        CUSTOM("自定义壁纸 (选择图片)")
     }
     var selectedWallpaper = MutableStateFlow(WallpaperType.NONE)
     var immersiveFocusEnabled = MutableStateFlow(false)
+
+    // Customize storage paths
+    var customWallpaperUri = MutableStateFlow<String?>(null)
+    var customMusicUri = MutableStateFlow<String?>(null)
+    var customMusicName = MutableStateFlow<String?>(null)
+
+    private val prefs = context.getSharedPreferences("pomodoro_settings", Context.MODE_PRIVATE)
+    private var customMediaPlayer: android.media.MediaPlayer? = null
 
     // Sync State
     private val _backupCode = MutableStateFlow<String?>(null)
@@ -91,6 +100,17 @@ class PomodoroViewModel(
     private var timerJob: Job? = null
 
     init {
+        // Load custom values
+        customWallpaperUri.value = prefs.getString("custom_wallpaper_uri", null)
+        customMusicUri.value = prefs.getString("custom_music_uri", null)
+        customMusicName.value = prefs.getString("custom_music_name", null)
+
+        val savedWp = prefs.getString("selected_wallpaper", WallpaperType.NONE.name)
+        selectedWallpaper.value = kotlin.runCatching { WallpaperType.valueOf(savedWp ?: "NONE") }.getOrDefault(WallpaperType.NONE)
+
+        val savedSound = prefs.getString("selected_sound", AmbientAudioSynth.SoundType.NONE.name)
+        bgSoundType.value = kotlin.runCatching { AmbientAudioSynth.SoundType.valueOf(savedSound ?: "NONE") }.getOrDefault(AmbientAudioSynth.SoundType.NONE)
+
         // Reset timer whenwork duration changes
         viewModelScope.launch {
             workDurationMinutes.collect { mins ->
@@ -99,6 +119,30 @@ class PomodoroViewModel(
                 }
             }
         }
+    }
+
+    fun saveCustomWallpaper(uri: String?) {
+        customWallpaperUri.value = uri
+        prefs.edit().putString("custom_wallpaper_uri", uri).apply()
+    }
+
+    fun saveCustomMusic(uri: String?, name: String?) {
+        customMusicUri.value = uri
+        customMusicName.value = name
+        prefs.edit()
+            .putString("custom_music_uri", uri)
+            .putString("custom_music_name", name)
+            .apply()
+    }
+
+    fun setWallpaper(wp: WallpaperType) {
+        selectedWallpaper.value = wp
+        prefs.edit().putString("selected_wallpaper", wp.name).apply()
+    }
+
+    fun setSoundType(sound: AmbientAudioSynth.SoundType) {
+        bgSoundType.value = sound
+        prefs.edit().putString("selected_sound", sound.name).apply()
     }
 
     // Task Actions
@@ -192,14 +236,67 @@ class PomodoroViewModel(
         }
     }
 
+    fun playCustomMusic() {
+        stopCustomMusic()
+        val uriStr = customMusicUri.value
+        if (uriStr.isNullOrEmpty()) {
+            _syncStatus.value = "尚未导入任何自定义音频文件"
+            viewModelScope.launch {
+                delay(3000)
+                _syncStatus.value = null
+            }
+            return
+        }
+        try {
+            val mp = android.media.MediaPlayer().apply {
+                setDataSource(context, android.net.Uri.parse(uriStr))
+                isLooping = true
+                prepare()
+                start()
+            }
+            customMediaPlayer = mp
+        } catch (e: Exception) {
+            Log.e("PomodoroViewModel", "Failed to play custom music file: $uriStr", e)
+            _syncStatus.value = "播放自定义音频失败，请在设置中重新选择"
+            viewModelScope.launch {
+                delay(3000)
+                _syncStatus.value = null
+            }
+        }
+    }
+
+    fun stopCustomMusic() {
+        try {
+            customMediaPlayer?.apply {
+                if (isPlaying) {
+                    stop()
+                }
+                release()
+            }
+        } catch (e: Exception) {
+            Log.e("PomodoroViewModel", "Error stopping custom media player", e)
+        } finally {
+            customMediaPlayer = null
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopCustomMusic()
+    }
+
     // Timer Controls
     fun startTimer() {
         if (_isRunning.value) return
         _isRunning.value = true
 
-        // Play synthetic background noise
+        // Play synthetic background noise or custom music
         if (bgSoundType.value != AmbientAudioSynth.SoundType.NONE) {
-            AmbientAudioSynth.start(bgSoundType.value)
+            if (bgSoundType.value == AmbientAudioSynth.SoundType.CUSTOM) {
+                playCustomMusic()
+            } else {
+                AmbientAudioSynth.start(bgSoundType.value)
+            }
         }
 
         // Toggle system Do Not Disturb
@@ -220,6 +317,7 @@ class PomodoroViewModel(
 
         // Stop background sound synthesis
         AmbientAudioSynth.stop()
+        stopCustomMusic()
 
         // Deactivate system Do Not Disturb
         setSystemDnd(false)
@@ -236,6 +334,7 @@ class PomodoroViewModel(
         _totalTimeMs.value = minutes * 60 * 1000L
 
         AmbientAudioSynth.stop()
+        stopCustomMusic()
         setSystemDnd(false)
     }
 
@@ -263,6 +362,7 @@ class PomodoroViewModel(
         triggerAlertNotification()
 
         AmbientAudioSynth.stop()
+        stopCustomMusic()
         setSystemDnd(false)
 
         if (!_isBreak.value) {

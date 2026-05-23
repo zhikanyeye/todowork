@@ -56,6 +56,7 @@ fun PomodoroScreen(
     val bgSoundType by viewModel.bgSoundType.collectAsStateWithLifecycle()
     val dndActiveActive by viewModel.dndEnabled.collectAsStateWithLifecycle()
     val strictActiveActive by viewModel.strictModeEnabled.collectAsStateWithLifecycle()
+    val customWallpaperUri by viewModel.customWallpaperUri.collectAsStateWithLifecycle()
 
     var showTaskSelector by remember { mutableStateOf(false) }
 
@@ -81,7 +82,10 @@ fun PomodoroScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         // 1. Procedural artistic wallpaper background
-        FocusWallpaper(wallpaperType = selectedWallpaper)
+        FocusWallpaper(
+            wallpaperType = selectedWallpaper,
+            customWallpaperUri = customWallpaperUri
+        )
 
         // 2. Immersive Focus Overlay when enabled
         if (immersiveFocusEnabled) {

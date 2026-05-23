@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -13,11 +14,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import com.example.ui.viewmodel.PomodoroViewModel.WallpaperType
 
 @Composable
 fun FocusWallpaper(
     wallpaperType: WallpaperType,
+    customWallpaperUri: String?,
     modifier: Modifier = Modifier
 ) {
     // We can add subtle ambient slow animations to make the wallpapers live and mesmerizing!
@@ -358,6 +362,37 @@ fun FocusWallpaper(
                             radius = width * 0.5f
                         )
                     )
+                }
+            }
+            WallpaperType.CUSTOM -> {
+                if (!customWallpaperUri.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = customWallpaperUri,
+                        contentDescription = "自定义背景壁纸",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    val surfaceBg = MaterialTheme.colorScheme.background
+                    val surfaceVariantBg = MaterialTheme.colorScheme.surfaceVariant
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(surfaceBg, surfaceVariantBg)
+                            )
+                        )
+                    }
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text(
+                            text = "未设置自定义壁纸\n请于「底栏设置」中上传导入",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         }
