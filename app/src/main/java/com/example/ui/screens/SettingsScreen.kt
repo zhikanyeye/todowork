@@ -46,6 +46,9 @@ fun SettingsScreen(
     val breakMins by viewModel.breakDurationMinutes.collectAsStateWithLifecycle()
     val longBreakMins by viewModel.longBreakDurationMinutes.collectAsStateWithLifecycle()
 
+    var activeEditingDurationType by remember { mutableStateOf<String?>(null) } // "work", "break", "long_break"
+    var durationTextInput by remember { mutableStateOf("") }
+
     val soundEnabled by viewModel.soundEnabled.collectAsStateWithLifecycle()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
 
@@ -140,22 +143,39 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Work Duration Slider
+                // Work Duration Config Section with Edit Option
                 Column {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                durationTextInput = workMins.toString()
+                                activeEditingDurationType = "work"
+                            }
+                            .padding(vertical = 6.dp, horizontal = 4.dp)
                     ) {
-                        Text(text = "工作周期时长", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            text = "$workMins 分钟",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Text(text = "工作周期时长 (点击手动修改)", style = MaterialTheme.typography.bodyMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "$workMins 分钟",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "手动输入工作周期",
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                     Slider(
-                        value = workMins.toFloat(),
+                        value = workMins.toFloat().coerceIn(5f, 60f),
                         onValueChange = { viewModel.workDurationMinutes.value = it.roundToInt() },
                         valueRange = 5f..60f,
                         steps = 11,
@@ -165,22 +185,39 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Break Duration Slider
+                // Break Duration Config Section with Edit Option
                 Column {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                durationTextInput = breakMins.toString()
+                                activeEditingDurationType = "break"
+                            }
+                            .padding(vertical = 6.dp, horizontal = 4.dp)
                     ) {
-                        Text(text = "短休息周期时长", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            text = "$breakMins 分钟",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
+                        Text(text = "短休息周期时长 (点击手动修改)", style = MaterialTheme.typography.bodyMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "$breakMins 分钟",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "手动输入短休息周期",
+                                tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                     Slider(
-                        value = breakMins.toFloat(),
+                        value = breakMins.toFloat().coerceIn(1f, 20f),
                         onValueChange = { viewModel.breakDurationMinutes.value = it.roundToInt() },
                         valueRange = 1f..20f,
                         steps = 19,
@@ -190,22 +227,39 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Long Break Duration
+                // Long Break Duration Config Section with Edit Option
                 Column {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                durationTextInput = longBreakMins.toString()
+                                activeEditingDurationType = "long_break"
+                            }
+                            .padding(vertical = 6.dp, horizontal = 4.dp)
                     ) {
-                        Text(text = "长休息周期时长", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            text = "$longBreakMins 分钟",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
+                        Text(text = "长休息周期时长 (点击手动修改)", style = MaterialTheme.typography.bodyMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "$longBreakMins 分钟",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "手动输入长休息周期",
+                                tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                     Slider(
-                        value = longBreakMins.toFloat(),
+                        value = longBreakMins.toFloat().coerceIn(5f, 40f),
                         onValueChange = { viewModel.longBreakDurationMinutes.value = it.roundToInt() },
                         valueRange = 5f..40f,
                         steps = 7,
@@ -540,6 +594,35 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("strict_mode_switch")
                     )
                 }
+
+                if (strictActive && !viewModel.isOverlayPermissionGranted()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = android.content.Intent(
+                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                try {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                                    context.startActivity(intent)
+                                } catch (ex: Exception) {
+                                    Toast.makeText(context, "跳转设置失败，请手动在设置中开启悬浮窗/画中画权限", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("点击授予系统『悬浮窗 / 显示在其他应用上层』权限", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         }
 
@@ -741,5 +824,68 @@ fun SettingsScreen(
             }
         }
         Spacer(modifier = Modifier.height(30.dp))
+    }
+
+    activeEditingDurationType?.let { type ->
+        val titleText = when (type) {
+            "work" -> "手动设置：工作周期时长"
+            "break" -> "手动设置：短休息周期时长"
+            "long_break" -> "手动设置：长休息周期时长"
+            else -> ""
+        }
+        val labelText = "输入分钟数 (大于 0)"
+        
+        AlertDialog(
+            onDismissRequest = { activeEditingDurationType = null },
+            title = { Text(text = titleText, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+            text = {
+                Column {
+                    Text(
+                        text = "您可以在此输入任意分钟时长（不受下方滑动条范围限制），输入后将即时生效并自动云同步：", 
+                        fontSize = 13.sp, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = durationTextInput,
+                        onValueChange = { input ->
+                            durationTextInput = input.filter { it.isDigit() }
+                        },
+                        label = { Text(labelText) },
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        modifier = Modifier.fillMaxWidth().testTag("manual_duration_input_field")
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val parsedVal = durationTextInput.trim().toIntOrNull()
+                        if (parsedVal != null && parsedVal > 0) {
+                            when (type) {
+                                "work" -> viewModel.workDurationMinutes.value = parsedVal
+                                "break" -> viewModel.breakDurationMinutes.value = parsedVal
+                                "long_break" -> viewModel.longBreakDurationMinutes.value = parsedVal
+                            }
+                            activeEditingDurationType = null
+                        } else {
+                            Toast.makeText(context, "请输入大于 0 的有效整数分钟！", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { activeEditingDurationType = null }
+                ) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }

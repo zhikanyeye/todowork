@@ -89,6 +89,7 @@ class PomodoroViewModel(
 
     private val prefs = context.getSharedPreferences("pomodoro_settings", Context.MODE_PRIVATE)
     private var customMediaPlayer: android.media.MediaPlayer? = null
+    private var toneGenerator: android.media.ToneGenerator? = null
 
     // Sync State
     private val _backupCode = MutableStateFlow<String?>(null)
@@ -101,6 +102,10 @@ class PomodoroViewModel(
 
     init {
         // Load custom values
+        workDurationMinutes.value = prefs.getInt("work_duration_minutes", 25)
+        breakDurationMinutes.value = prefs.getInt("break_duration_minutes", 5)
+        longBreakDurationMinutes.value = prefs.getInt("long_break_duration_minutes", 15)
+        
         customWallpaperUri.value = prefs.getString("custom_wallpaper_uri", null)
         customMusicUri.value = prefs.getString("custom_music_uri", null)
         customMusicName.value = prefs.getString("custom_music_name", null)
@@ -111,12 +116,23 @@ class PomodoroViewModel(
         val savedSound = prefs.getString("selected_sound", AmbientAudioSynth.SoundType.NONE.name)
         bgSoundType.value = kotlin.runCatching { AmbientAudioSynth.SoundType.valueOf(savedSound ?: "NONE") }.getOrDefault(AmbientAudioSynth.SoundType.NONE)
 
-        // Reset timer whenwork duration changes
+        // Reset timer when work duration changes and persist updates
         viewModelScope.launch {
             workDurationMinutes.collect { mins ->
+                prefs.edit().putInt("work_duration_minutes", mins).apply()
                 if (!_isRunning.value && !_isBreak.value) {
                     resetTimer()
                 }
+            }
+        }
+        viewModelScope.launch {
+            breakDurationMinutes.collect { mins ->
+                prefs.edit().putInt("break_duration_minutes", mins).apply()
+            }
+        }
+        viewModelScope.launch {
+            longBreakDurationMinutes.collect { mins ->
+                prefs.edit().putInt("long_break_duration_minutes", mins).apply()
             }
         }
     }
@@ -141,8 +157,25 @@ class PomodoroViewModel(
     }
 
     fun setSoundType(sound: AmbientAudioSynth.SoundType) {
+        val oldSound = bgSoundType.value
         bgSoundType.value = sound
         prefs.edit().putString("selected_sound", sound.name).apply()
+
+        // If the timer is actually running, hot-swap the sound playback immediately
+        if (_isRunning.value) {
+            // Unconditionally stop ongoing synthesis and custom MediaPlayer playback
+            AmbientAudioSynth.stop()
+            stopCustomMusic()
+
+            // Play the newly selected audio style
+            if (sound != AmbientAudioSynth.SoundType.NONE) {
+                if (sound == AmbientAudioSynth.SoundType.CUSTOM) {
+                    playCustomMusic()
+                } else {
+                    AmbientAudioSynth.start(sound)
+                }
+            }
+        }
     }
 
     // Task Actions
@@ -283,6 +316,12 @@ class PomodoroViewModel(
     override fun onCleared() {
         super.onCleared()
         stopCustomMusic()
+        try {
+            toneGenerator?.release()
+        } catch (e: Exception) {
+            // Ignored
+        }
+        toneGenerator = null
     }
 
     // Timer Controls
@@ -481,10 +520,13 @@ class PomodoroViewModel(
     fun playStrictWarningAlarm() {
         if (soundEnabled.value) {
             try {
-                val toneG = ToneGenerator(AudioManager.STREAM_ALARM, 100)
-                toneG.startTone(ToneGenerator.TONE_CDMA_HIGH_L, 1000)
+                if (toneGenerator == null) {
+                    toneGenerator = android.media.ToneGenerator(android.media.AudioManager.STREAM_ALARM, 100)
+                }
+                toneGenerator?.startTone(android.media.ToneGenerator.TONE_CDMA_HIGH_L, 1000)
             } catch (e: Exception) {
                 Log.e("PomodoroViewModel", "Failed to play strict warning tone", e)
+                toneGenerator = null
             }
         }
         if (vibrationEnabled.value) {

@@ -53,21 +53,80 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var isActivityVisible = false
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val strictLockRunnable = object : Runnable {
+        override fun run() {
+            if (::viewModel.isInitialized) {
+                if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value && !isActivityVisible) {
+                    triggerStrictLocker()
+                    handler.postDelayed(this, 2000)
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isActivityVisible = true
+        handler.removeCallbacks(strictLockRunnable)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        isActivityVisible = false
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacks(strictLockRunnable)
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         triggerStrictLocker()
+        scheduleStrictLockLoop()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        triggerStrictLocker()
+        scheduleStrictLockLoop()
+    }
+
+    private fun scheduleStrictLockLoop() {
+        if (::viewModel.isInitialized) {
+            if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value) {
+                handler.removeCallbacks(strictLockRunnable)
+                handler.postDelayed(strictLockRunnable, 1500)
+            }
+        }
     }
 
     private fun triggerStrictLocker() {
         if (::viewModel.isInitialized) {
-            if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value) {
-                viewModel.playStrictWarningAlarm()
-                val intent = android.content.Intent(this, MainActivity::class.java).apply {
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or 
-                             android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or 
-                             android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            try {
+                if (viewModel.strictModeEnabled.value && viewModel.isRunning.value && !viewModel.isBreak.value) {
+                    viewModel.playStrictWarningAlarm()
+                    android.widget.Toast.makeText(
+                        this, 
+                        "🔒 专注严格模式已开启！请专注于当前任务！", 
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+
+                    if (viewModel.isOverlayPermissionGranted()) {
+                        val intent = android.content.Intent(this, MainActivity::class.java).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or 
+                                     android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or 
+                                     android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                        }
+                        startActivity(intent)
+                    } else {
+                        android.util.Log.w("MainActivity", "Overlay permission not granted; skipping background activity start to avoid OS termination.")
+                    }
                 }
-                startActivity(intent)
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Strict locker trigger failed due to permission or background start restriction", e)
             }
         }
     }
@@ -76,6 +135,23 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppLayout(viewModel: PomodoroViewModel) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val isRunning by viewModel.isRunning.collectAsState()
+    val isBreak by viewModel.isBreak.collectAsState()
+    val strictEnabled by viewModel.strictModeEnabled.collectAsState()
+    val isStrictActive = strictEnabled && isRunning && !isBreak
+
+    // Intercept back button during active strict mode focus
+    if (isStrictActive) {
+        androidx.activity.compose.BackHandler(enabled = true) {
+            android.widget.Toast.makeText(
+                context,
+                "🔒 专注严格模式生效中，禁止退出！请保持心流！",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
     
     val navigationItems = listOf(
         NavigationItem("专注", Icons.Default.Timer, Icons.Outlined.Timer, "pomodoro_tab"),
@@ -95,7 +171,17 @@ fun MainAppLayout(viewModel: PomodoroViewModel) {
                     val isSelected = selectedTab == index
                     NavigationBarItem(
                         selected = isSelected,
-                        onClick = { selectedTab = index },
+                        onClick = { 
+                            if (isStrictActive && index != 0) {
+                                android.widget.Toast.makeText(
+                                    context, 
+                                    "🔒 严格专注模式运行中，禁止离开专注屏！", 
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                selectedTab = index 
+                            }
+                        },
                         icon = {
                             Icon(
                                 imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,

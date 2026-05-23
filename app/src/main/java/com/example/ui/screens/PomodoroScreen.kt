@@ -7,6 +7,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,8 +59,12 @@ fun PomodoroScreen(
     val dndActiveActive by viewModel.dndEnabled.collectAsStateWithLifecycle()
     val strictActiveActive by viewModel.strictModeEnabled.collectAsStateWithLifecycle()
     val customWallpaperUri by viewModel.customWallpaperUri.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val scrollState = rememberScrollState()
 
     var showTaskSelector by remember { mutableStateOf(false) }
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
 
     // Format Remaining Time to MM:SS
     val formattedTime = remember(remainingTimeMs) {
@@ -202,15 +208,7 @@ fun PomodoroScreen(
                         // Click to cycle sounds
                         val sounds = com.example.data.audio.AmbientAudioSynth.SoundType.values()
                         val nextIdx = (bgSoundType.ordinal + 1) % sounds.size
-                        viewModel.bgSoundType.value = sounds[nextIdx]
-                        
-                        // If timer is running, hot-reload sound play
-                        if (isRunning) {
-                            com.example.data.audio.AmbientAudioSynth.stop()
-                            if (sounds[nextIdx] != com.example.data.audio.AmbientAudioSynth.SoundType.NONE) {
-                                com.example.data.audio.AmbientAudioSynth.start(sounds[nextIdx])
-                            }
-                        }
+                        viewModel.setSoundType(sounds[nextIdx])
                     }
                 ) {
                     Row(
@@ -257,7 +255,15 @@ fun PomodoroScreen(
                     // Play/Pause FAB
                     LargeFloatingActionButton(
                         onClick = {
-                            if (isRunning) viewModel.pauseTimer() else viewModel.startTimer()
+                            if (isRunning) {
+                                viewModel.pauseTimer()
+                            } else {
+                                if (strictActiveActive && !viewModel.isOverlayPermissionGranted()) {
+                                    showOverlayPermissionDialog = true
+                                } else {
+                                    viewModel.startTimer()
+                                }
+                            }
                         },
                         shape = CircleShape,
                         containerColor = Color.White,
@@ -292,6 +298,7 @@ fun PomodoroScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(scrollState)
                     .padding(16.dp)
             ) {
                 Spacer(modifier = Modifier.height(10.dp))
@@ -458,7 +465,15 @@ fun PomodoroScreen(
                             // Play / Pause FAB Big circle Button
                             LargeFloatingActionButton(
                                 onClick = {
-                                    if (isRunning) viewModel.pauseTimer() else viewModel.startTimer()
+                                    if (isRunning) {
+                                        viewModel.pauseTimer()
+                                    } else {
+                                        if (strictActiveActive && !viewModel.isOverlayPermissionGranted()) {
+                                            showOverlayPermissionDialog = true
+                                        } else {
+                                            viewModel.startTimer()
+                                        }
+                                    }
                                 },
                                 shape = CircleShape,
                                 containerColor = progressColor,
@@ -693,6 +708,58 @@ fun PomodoroScreen(
             confirmButton = {
                 TextButton(onClick = { showTaskSelector = false }) {
                     Text("取消")
+                }
+            }
+        )
+    }
+
+    if (showOverlayPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showOverlayPermissionDialog = false },
+            title = {
+                Text(
+                    text = "🔒 严格模式防切屏蔽激活提示",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "您已开启了「🔒严格锁定阻栏模式」，但尚未授予系统「悬浮窗/显示在其他应用上层」的权限。如果没有此权限，当您中途切出桌面或使用其他软件时，应用将无法强制拉回，使得锁定效果失效。\n\n建议点击去授权，并在系统列表中开启本软件对应的『悬浮窗 / 显示在其他应用上层』开关，或选择『普通模式』正常开始。",
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showOverlayPermissionDialog = false
+                        try {
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                android.net.Uri.parse("package:${context.packageName}")
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            try {
+                                val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                                context.startActivity(intent)
+                            } catch (ex: Exception) {
+                                // Fallback
+                            }
+                        }
+                    }
+                ) {
+                    Text("去开启悬浮窗")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showOverlayPermissionDialog = false
+                        viewModel.startTimer()
+                    }
+                ) {
+                    Text("以普通模式开始")
                 }
             }
         )
