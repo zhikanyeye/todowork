@@ -8,6 +8,9 @@ on:
   # Allow manual triggering from GitHub Actions tab
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build:
     name: Build Android App & Run Tests
