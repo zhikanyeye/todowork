@@ -21,6 +21,8 @@ import com.example.data.sync.BackupHelper
 import com.example.data.sync.CalendarSyncHelper
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import org.json.JSONArray
+import org.json.JSONObject
 
 class PomodoroViewModel(
     application: Application,
@@ -78,6 +80,12 @@ class PomodoroViewModel(
         COCOA("温暖可可 (秋日暖泥)"),
         CUSTOM("自定义壁纸 (选择图片)")
     }
+
+    data class CustomMediaItem(
+        val uri: String,
+        val name: String
+    )
+
     var selectedWallpaper = MutableStateFlow(WallpaperType.NONE)
     var immersiveFocusEnabled = MutableStateFlow(false)
 
@@ -85,10 +93,13 @@ class PomodoroViewModel(
     var customWallpaperUri = MutableStateFlow<String?>(null)
     var customMusicUri = MutableStateFlow<String?>(null)
     var customMusicName = MutableStateFlow<String?>(null)
+    var customWallpaperItems = MutableStateFlow<List<CustomMediaItem>>(emptyList())
+    var customMusicItems = MutableStateFlow<List<CustomMediaItem>>(emptyList())
 
     private val prefs = context.getSharedPreferences("pomodoro_settings", Context.MODE_PRIVATE)
     private var customMediaPlayer: android.media.MediaPlayer? = null
     private var toneGenerator: android.media.ToneGenerator? = null
+    private var previousInterruptionFilter: Int? = null
 
     // Sync State
     private val _backupCode = MutableStateFlow<String?>(null)
@@ -108,6 +119,9 @@ class PomodoroViewModel(
         customWallpaperUri.value = prefs.getString("custom_wallpaper_uri", null)
         customMusicUri.value = prefs.getString("custom_music_uri", null)
         customMusicName.value = prefs.getString("custom_music_name", null)
+        customWallpaperItems.value = loadCustomMediaItems("custom_wallpaper_items")
+        customMusicItems.value = loadCustomMediaItems("custom_music_items")
+        seedLegacyCustomMedia()
 
         val savedWp = prefs.getString("selected_wallpaper", WallpaperType.NONE.name)
         selectedWallpaper.value = kotlin.runCatching { WallpaperType.valueOf(savedWp ?: "NONE") }.getOrDefault(WallpaperType.NONE)
@@ -136,18 +150,93 @@ class PomodoroViewModel(
         }
     }
 
-    fun saveCustomWallpaper(uri: String?) {
+    private fun seedLegacyCustomMedia() {
+        customWallpaperUri.value?.let { uri ->
+            if (uri.isNotEmpty() && customWallpaperItems.value.none { it.uri == uri }) {
+                customWallpaperItems.value = customWallpaperItems.value + CustomMediaItem(uri, "自定义壁纸")
+                persistCustomMediaItems("custom_wallpaper_items", customWallpaperItems.value)
+            }
+        }
+        customMusicUri.value?.let { uri ->
+            if (uri.isNotEmpty() && customMusicItems.value.none { it.uri == uri }) {
+                customMusicItems.value = customMusicItems.value + CustomMediaItem(
+                    uri = uri,
+                    name = customMusicName.value ?: "自定义背景音乐"
+                )
+                persistCustomMediaItems("custom_music_items", customMusicItems.value)
+            }
+        }
+    }
+
+    private fun loadCustomMediaItems(key: String): List<CustomMediaItem> {
+        val raw = prefs.getString(key, null) ?: return emptyList()
+        return runCatching {
+            val array = JSONArray(raw)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val item = array.getJSONObject(i)
+                    val uri = item.optString("uri")
+                    if (uri.isNotEmpty()) {
+                        add(CustomMediaItem(uri = uri, name = item.optString("name", "自定义资源")))
+                    }
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun persistCustomMediaItems(key: String, items: List<CustomMediaItem>) {
+        val array = JSONArray()
+        items.distinctBy { it.uri }.forEach { item ->
+            array.put(
+                JSONObject()
+                    .put("uri", item.uri)
+                    .put("name", item.name)
+            )
+        }
+        prefs.edit().putString(key, array.toString()).apply()
+    }
+
+    fun saveCustomWallpaper(uri: String?, name: String? = null) {
         customWallpaperUri.value = uri
+        if (!uri.isNullOrEmpty()) {
+            val item = CustomMediaItem(uri, name ?: "自定义壁纸")
+            customWallpaperItems.value = (listOf(item) + customWallpaperItems.value.filterNot { it.uri == uri })
+            persistCustomMediaItems("custom_wallpaper_items", customWallpaperItems.value)
+        }
         prefs.edit().putString("custom_wallpaper_uri", uri).apply()
     }
 
     fun saveCustomMusic(uri: String?, name: String?) {
         customMusicUri.value = uri
         customMusicName.value = name
+        if (!uri.isNullOrEmpty()) {
+            val item = CustomMediaItem(uri, name ?: "自定义背景音乐")
+            customMusicItems.value = (listOf(item) + customMusicItems.value.filterNot { it.uri == uri })
+            persistCustomMediaItems("custom_music_items", customMusicItems.value)
+        }
         prefs.edit()
             .putString("custom_music_uri", uri)
             .putString("custom_music_name", name)
             .apply()
+    }
+
+    fun selectCustomWallpaper(item: CustomMediaItem) {
+        customWallpaperUri.value = item.uri
+        selectedWallpaper.value = WallpaperType.CUSTOM
+        prefs.edit()
+            .putString("custom_wallpaper_uri", item.uri)
+            .putString("selected_wallpaper", WallpaperType.CUSTOM.name)
+            .apply()
+    }
+
+    fun selectCustomMusic(item: CustomMediaItem) {
+        customMusicUri.value = item.uri
+        customMusicName.value = item.name
+        prefs.edit()
+            .putString("custom_music_uri", item.uri)
+            .putString("custom_music_name", item.name)
+            .apply()
+        setSoundType(AmbientAudioSynth.SoundType.CUSTOM)
     }
 
     fun setWallpaper(wp: WallpaperType) {
@@ -155,8 +244,13 @@ class PomodoroViewModel(
         prefs.edit().putString("selected_wallpaper", wp.name).apply()
     }
 
+    fun cycleWallpaper() {
+        val values = WallpaperType.values()
+        val nextOrdinal = (selectedWallpaper.value.ordinal + 1) % values.size
+        setWallpaper(values[nextOrdinal])
+    }
+
     fun setSoundType(sound: AmbientAudioSynth.SoundType) {
-        val oldSound = bgSoundType.value
         bgSoundType.value = sound
         prefs.edit().putString("selected_sound", sound.name).apply()
 
@@ -174,6 +268,21 @@ class PomodoroViewModel(
                     AmbientAudioSynth.start(sound)
                 }
             }
+        }
+    }
+
+    fun cycleSoundType() {
+        val values = AmbientAudioSynth.SoundType.values().filter {
+            it != AmbientAudioSynth.SoundType.CUSTOM || !customMusicUri.value.isNullOrEmpty()
+        }
+        val currentIndex = values.indexOf(bgSoundType.value).takeIf { it >= 0 } ?: 0
+        setSoundType(values[(currentIndex + 1) % values.size])
+    }
+
+    fun setDndEnabled(enabled: Boolean) {
+        dndEnabled.value = enabled
+        if (!enabled) {
+            setSystemDnd(false)
         }
     }
 
@@ -281,6 +390,17 @@ class PomodoroViewModel(
         }
         try {
             val mp = android.media.MediaPlayer().apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    setAudioAttributes(
+                        android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    setAudioStreamType(AudioManager.STREAM_MUSIC)
+                }
                 setDataSource(context, android.net.Uri.parse(uriStr))
                 isLooping = true
                 prepare()
@@ -314,13 +434,19 @@ class PomodoroViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        stopCustomMusic()
+        releaseFocusResources()
         try {
             toneGenerator?.release()
         } catch (e: Exception) {
             // Ignored
         }
         toneGenerator = null
+    }
+
+    fun releaseFocusResources() {
+        AmbientAudioSynth.stop()
+        stopCustomMusic()
+        setSystemDnd(false)
     }
 
     // Timer Controls
@@ -354,8 +480,7 @@ class PomodoroViewModel(
         timerJob?.cancel()
 
         // Stop background sound synthesis
-        AmbientAudioSynth.stop()
-        stopCustomMusic()
+        releaseFocusResources()
 
         // Deactivate system Do Not Disturb
         setSystemDnd(false)
@@ -371,9 +496,7 @@ class PomodoroViewModel(
         _remainingTimeMs.value = minutes * 60 * 1000L
         _totalTimeMs.value = minutes * 60 * 1000L
 
-        AmbientAudioSynth.stop()
-        stopCustomMusic()
-        setSystemDnd(false)
+        releaseFocusResources()
     }
 
     fun skipSession() {
@@ -399,9 +522,7 @@ class PomodoroViewModel(
         _isRunning.value = false
         triggerAlertNotification()
 
-        AmbientAudioSynth.stop()
-        stopCustomMusic()
-        setSystemDnd(false)
+        releaseFocusResources()
 
         if (!_isBreak.value) {
             // Work complete! Record pomodoro
@@ -496,15 +617,20 @@ class PomodoroViewModel(
     }
 
     private fun setSystemDnd(enabled: Boolean) {
-        if (!dndEnabled.value) return
+        if (enabled && !dndEnabled.value) return
         try {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 if (notificationManager.isNotificationPolicyAccessGranted) {
                     val targetFilter = if (enabled) {
-                        android.app.NotificationManager.INTERRUPTION_FILTER_NONE
+                        if (previousInterruptionFilter == null) {
+                            previousInterruptionFilter = notificationManager.currentInterruptionFilter
+                        }
+                        android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY
                     } else {
-                        android.app.NotificationManager.INTERRUPTION_FILTER_ALL
+                        val previous = previousInterruptionFilter
+                        previousInterruptionFilter = null
+                        previous ?: android.app.NotificationManager.INTERRUPTION_FILTER_ALL
                     }
                     notificationManager.setInterruptionFilter(targetFilter)
                 }

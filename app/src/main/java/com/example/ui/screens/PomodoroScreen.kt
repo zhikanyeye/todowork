@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.audio.AmbientAudioSynth
 import com.example.data.database.PomodoroLogEntity
 import com.example.data.database.TaskEntity
 import com.example.ui.viewmodel.PomodoroViewModel
@@ -62,6 +63,7 @@ fun PomodoroScreen(
     val dndActiveActive by viewModel.dndEnabled.collectAsStateWithLifecycle()
     val strictActiveActive by viewModel.strictModeEnabled.collectAsStateWithLifecycle()
     val customWallpaperUri by viewModel.customWallpaperUri.collectAsStateWithLifecycle()
+    val customMusicName by viewModel.customMusicName.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val scrollState = rememberScrollState()
@@ -170,25 +172,43 @@ fun PomodoroScreen(
                                 Text("退出", fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
                             }
 
-                            FilledTonalButton(
-                                onClick = {
-                                    val values = PomodoroViewModel.WallpaperType.values()
-                                    val nextOrdinal = (selectedWallpaper.ordinal + 1) % values.size
-                                    viewModel.selectedWallpaper.value = values[nextOrdinal]
-                                },
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = Color.White.copy(alpha = 0.14f),
-                                    contentColor = Color.White
-                                ),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Palette,
-                                    contentDescription = "切壁纸",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("壁纸", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                FilledTonalButton(
+                                    onClick = { viewModel.cycleSoundType() },
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = Color.White.copy(alpha = 0.14f),
+                                        contentColor = Color.White
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MusicNote,
+                                        contentDescription = "切音乐",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("音乐", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                }
+
+                                FilledTonalButton(
+                                    onClick = { viewModel.cycleWallpaper() },
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = Color.White.copy(alpha = 0.14f),
+                                        contentColor = Color.White
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Palette,
+                                        contentDescription = "切壁纸",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("壁纸", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                }
                             }
                         }
                     }
@@ -223,7 +243,11 @@ fun PomodoroScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = selectedTask?.title ?: if (isBreak) "休息中" else "自由专注",
+                                    text = when {
+                                        bgSoundType == AmbientAudioSynth.SoundType.CUSTOM && !customMusicName.isNullOrEmpty() -> customMusicName ?: ""
+                                        bgSoundType != AmbientAudioSynth.SoundType.NONE -> bgSoundType.displayName
+                                        else -> selectedTask?.title ?: if (isBreak) "休息中" else "自由专注"
+                                    },
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
@@ -571,17 +595,27 @@ fun PomodoroScreen(
                 }
 
                 // Flow Ambient Status row
-                if (bgSoundType != com.example.data.audio.AmbientAudioSynth.SoundType.NONE || dndActiveActive || strictActiveActive) {
+                if (bgSoundType != AmbientAudioSynth.SoundType.NONE || dndActiveActive || strictActiveActive) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (bgSoundType != com.example.data.audio.AmbientAudioSynth.SoundType.NONE) {
+                        if (bgSoundType != AmbientAudioSynth.SoundType.NONE) {
                             SuggestionChip(
-                                onClick = { },
-                                label = { Text("🔊 ${bgSoundType.displayName}", fontSize = 11.sp, maxLines = 1) },
+                                onClick = { viewModel.cycleSoundType() },
+                                label = {
+                                    Text(
+                                        text = if (bgSoundType == AmbientAudioSynth.SoundType.CUSTOM && !customMusicName.isNullOrEmpty()) {
+                                            "🔊 $customMusicName"
+                                        } else {
+                                            "🔊 ${bgSoundType.displayName}"
+                                        },
+                                        fontSize = 11.sp,
+                                        maxLines = 1
+                                    )
+                                },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = progressColor.copy(alpha = 0.08f),
                                     labelColor = progressColor

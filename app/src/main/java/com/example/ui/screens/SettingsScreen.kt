@@ -58,7 +58,21 @@ fun SettingsScreen(
     val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
 
     val customWallpaperUri by viewModel.customWallpaperUri.collectAsStateWithLifecycle()
+    val customMusicUri by viewModel.customMusicUri.collectAsStateWithLifecycle()
     val customMusicName by viewModel.customMusicName.collectAsStateWithLifecycle()
+    val customWallpaperItems by viewModel.customWallpaperItems.collectAsStateWithLifecycle()
+    val customMusicItems by viewModel.customMusicItems.collectAsStateWithLifecycle()
+
+    fun displayNameFor(uri: android.net.Uri, fallback: String): String {
+        var displayName = fallback
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIdx != -1 && cursor.moveToFirst()) {
+                displayName = cursor.getString(nameIdx)
+            }
+        }
+        return displayName
+    }
 
     val wallpaperPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -72,7 +86,7 @@ fun SettingsScreen(
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
             }
-            viewModel.saveCustomWallpaper(it.toString())
+            viewModel.saveCustomWallpaper(it.toString(), displayNameFor(it, "自定义壁纸"))
             viewModel.setWallpaper(PomodoroViewModel.WallpaperType.CUSTOM)
             Toast.makeText(context, "自定义壁纸已成功导入！", Toast.LENGTH_SHORT).show()
         }
@@ -91,13 +105,7 @@ fun SettingsScreen(
                 e.printStackTrace()
             }
             
-            var displayName = "自定义背景音乐"
-            context.contentResolver.query(it, null, null, null, null)?.use { cursor ->
-                val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (nameIdx != -1 && cursor.moveToFirst()) {
-                    displayName = cursor.getString(nameIdx)
-                }
-            }
+            val displayName = displayNameFor(it, "自定义背景音乐")
             
             viewModel.saveCustomMusic(it.toString(), displayName)
             viewModel.setSoundType(com.example.data.audio.AmbientAudioSynth.SoundType.CUSTOM)
@@ -365,6 +373,46 @@ fun SettingsScreen(
                             Text("上传本地图片", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
+
+                    if (customWallpaperItems.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            customWallpaperItems.take(6).forEach { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { viewModel.selectCustomWallpaper(item) }
+                                        .background(
+                                            if (customWallpaperUri == item.uri) {
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                            } else {
+                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
+                                            }
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = customWallpaperUri == item.uri,
+                                        onClick = { viewModel.selectCustomWallpaper(item) }
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = item.name,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (customWallpaperUri == item.uri) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -422,36 +470,77 @@ fun SettingsScreen(
                         }
 
                         if (sound == com.example.data.audio.AmbientAudioSynth.SoundType.CUSTOM && isSelected) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(start = 48.dp, end = 4.dp, bottom = 8.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                                     .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    text = if (!customMusicName.isNullOrEmpty()) "已导入音频：$customMusicName" else "暂未选择音频文件，播放静音",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f).padding(end = 8.dp)
-                                )
-                                TextButton(
-                                    onClick = {
-                                        try {
-                                            musicPickerLauncher.launch(arrayOf("audio/*"))
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "打开文件选择器失败：${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(28.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(Icons.Default.AudioFile, contentDescription = null, modifier = Modifier.size(12.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("选择本地音频", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = if (!customMusicName.isNullOrEmpty()) "当前音频：$customMusicName" else "暂未选择音频文件，播放静音",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            try {
+                                                musicPickerLauncher.launch(arrayOf("audio/*"))
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "打开文件选择器失败：${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(28.dp)
+                                    ) {
+                                        Icon(Icons.Default.AudioFile, contentDescription = null, modifier = Modifier.size(12.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("选择本地音频", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                if (customMusicItems.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    customMusicItems.take(6).forEach { item ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable { viewModel.selectCustomMusic(item) }
+                                                .background(
+                                                    if (customMusicUri == item.uri) {
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                    } else {
+                                                        Color.Transparent
+                                                    }
+                                                )
+                                                .padding(horizontal = 6.dp, vertical = 5.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            RadioButton(
+                                                selected = customMusicUri == item.uri,
+                                                onClick = { viewModel.selectCustomMusic(item) }
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = item.name,
+                                                fontSize = 11.sp,
+                                                fontWeight = if (customMusicUri == item.uri) FontWeight.Bold else FontWeight.Normal,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -478,7 +567,7 @@ fun SettingsScreen(
                     }
                     Switch(
                         checked = dndActive,
-                        onCheckedChange = { viewModel.dndEnabled.value = it },
+                        onCheckedChange = { viewModel.setDndEnabled(it) },
                         modifier = Modifier.testTag("dnd_switch")
                     )
                 }

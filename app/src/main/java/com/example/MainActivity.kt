@@ -94,6 +94,9 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(strictLockRunnable)
+        if (isFinishing && ::viewModel.isInitialized) {
+            viewModel.releaseFocusResources()
+        }
     }
 
     override fun onUserLeaveHint() {
@@ -165,6 +168,7 @@ fun MainAppLayout(viewModel: PomodoroViewModel) {
     val isRunning by viewModel.isRunning.collectAsState()
     val isBreak by viewModel.isBreak.collectAsState()
     val strictEnabled by viewModel.strictModeEnabled.collectAsState()
+    val immersiveFocusEnabled by viewModel.immersiveFocusEnabled.collectAsState()
     val isStrictActive = strictEnabled && isRunning && !isBreak
 
     // Intercept back button during active strict mode focus
@@ -187,35 +191,37 @@ fun MainAppLayout(viewModel: PomodoroViewModel) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .testTag("bottom_nav_bar")
-            ) {
-                navigationItems.forEachIndexed { index, item ->
-                    val isSelected = selectedTab == index
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { 
-                            if (isStrictActive && index != 0) {
-                                android.widget.Toast.makeText(
-                                    context, 
-                                    "🔒 严格专注模式运行中，禁止离开专注屏！", 
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            } else {
-                                selectedTab = index 
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                contentDescription = item.title
-                            )
-                        },
-                        label = { Text(text = item.title) },
-                        modifier = Modifier.testTag(item.testTag)
-                    )
+            if (!immersiveFocusEnabled) {
+                NavigationBar(
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .testTag("bottom_nav_bar")
+                ) {
+                    navigationItems.forEachIndexed { index, item ->
+                        val isSelected = selectedTab == index
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = {
+                                if (isStrictActive && index != 0) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "🔒 严格专注模式运行中，禁止离开专注屏！",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    selectedTab = index
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                    contentDescription = item.title
+                                )
+                            },
+                            label = { Text(text = item.title) },
+                            modifier = Modifier.testTag(item.testTag)
+                        )
+                    }
                 }
             }
         }
