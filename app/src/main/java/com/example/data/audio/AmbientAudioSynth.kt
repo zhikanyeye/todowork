@@ -30,14 +30,14 @@ object AmbientAudioSynth {
         FIREPLACE("炉火噼啪 (温暖木柴)"),
         CAFE("咖啡馆底噪 (远处人声)"),
         SPACE_DRONE("太空宇宙 (专注脑波)"),
-        FOCUS_PAD("轻柔纯音乐 (无版权铺底)"),
+        FOCUS_PAD("原创和弦铺底 (可听纯音)"),
         CUSTOM("自定义音乐 (导入外部音频)")
     }
 
     private var currentType = SoundType.NONE
 
     fun start(type: SoundType) {
-        if (currentType == type) return
+        if (currentType == type && audioTrack != null && synthJob?.isActive == true) return
         stop()
         if (type == SoundType.NONE) return
         currentType = type
@@ -97,7 +97,9 @@ object AmbientAudioSynth {
                 var padPhase2 = 0.0
                 var padPhase3 = 0.0
                 var padPhase4 = 0.0
+                var padSampleCursor = 0L
 
+                track.setVolume(0.88f)
                 while (isActive) {
                     for (i in buffer.indices) {
                         val sample: Float = when (type) {
@@ -215,21 +217,36 @@ object AmbientAudioSynth {
                             SoundType.FOCUS_PAD -> {
                                 phaseTheta += (2.0 * java.lang.Math.PI * 0.035) / SAMPLE_RATE
                                 val breath = (0.62f + 0.38f * ((Math.sin(phaseTheta) + 1.0) / 2.0).toFloat())
-                                padPhase1 += (2.0 * java.lang.Math.PI * 130.81) / SAMPLE_RATE
-                                padPhase2 += (2.0 * java.lang.Math.PI * 196.00) / SAMPLE_RATE
-                                padPhase3 += (2.0 * java.lang.Math.PI * 261.63) / SAMPLE_RATE
-                                padPhase4 += (2.0 * java.lang.Math.PI * 392.00) / SAMPLE_RATE
+                                val seconds = padSampleCursor.toDouble() / SAMPLE_RATE
+                                val chordStep = ((seconds / 8.0).toInt() % 4)
+                                val root = doubleArrayOf(130.81, 98.00, 110.00, 87.31)[chordStep]
+                                val third = doubleArrayOf(164.81, 123.47, 130.81, 110.00)[chordStep]
+                                val fifth = doubleArrayOf(196.00, 146.83, 164.81, 130.81)[chordStep]
+                                val high = doubleArrayOf(261.63, 196.00, 220.00, 174.61)[chordStep]
 
-                                val chord = (
+                                padPhase1 += (2.0 * java.lang.Math.PI * root) / SAMPLE_RATE
+                                padPhase2 += (2.0 * java.lang.Math.PI * third) / SAMPLE_RATE
+                                padPhase3 += (2.0 * java.lang.Math.PI * fifth) / SAMPLE_RATE
+                                padPhase4 += (2.0 * java.lang.Math.PI * high) / SAMPLE_RATE
+
+                                val padChord = (
                                     Math.sin(padPhase1).toFloat() * 0.34f +
-                                        Math.sin(padPhase2).toFloat() * 0.28f +
+                                        Math.sin(padPhase2).toFloat() * 0.24f +
                                         Math.sin(padPhase3).toFloat() * 0.22f +
-                                        Math.sin(padPhase4).toFloat() * 0.16f
-                                    )
+                                        Math.sin(padPhase4).toFloat() * 0.12f
+                                    ) * breath
+
+                                val arpeggio = doubleArrayOf(root, fifth, high, fifth, third, fifth, high, fifth)
+                                val noteIndex = ((seconds * 2.0).toInt() % arpeggio.size).coerceIn(0, arpeggio.lastIndex)
+                                val notePhase = (seconds * 2.0) % 1.0
+                                val noteEnvelope = Math.exp(-notePhase * 4.2).toFloat()
+                                val melody = Math.sin(2.0 * java.lang.Math.PI * arpeggio[noteIndex] * seconds).toFloat() * noteEnvelope
+
                                 val air = random.nextFloat() * 2f - 1f
                                 val filteredAir = lastOut + 0.04f * (air - lastOut)
                                 lastOut = filteredAir
-                                chord * breath * 0.10f + filteredAir * 0.018f
+                                padSampleCursor++
+                                (padChord * 0.22f + melody * 0.12f + filteredAir * 0.018f).coerceIn(-0.28f, 0.28f)
                             }
                             else -> 0f
                         }
@@ -247,6 +264,9 @@ object AmbientAudioSynth {
                     audioTrack?.release()
                 }
                 audioTrack = null
+                if (currentType == type) {
+                    currentType = SoundType.NONE
+                }
             }
         }
     }

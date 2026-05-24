@@ -128,240 +128,281 @@ fun FocusWallpaper(
                 }
             }
             WallpaperType.COSMIC -> {
-                // Deep mysterious space nebula with twinkling stars
+                // Quiet orbital sky with a clear planet horizon and crisp stars.
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val width = size.width
                     val height = size.height
 
-                    // 1. Base cosmos dark blue to indigo black gradient
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFF050B1B),
-                                Color(0xFF02040B)
+                                Color(0xFF071A2D),
+                                Color(0xFF090B16),
+                                Color(0xFF02030A)
                             )
                         )
                     )
 
-                    // 2. Cosmic nebulae radial gas clouds
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFF7C4DFF).copy(alpha = 0.25f), // Violet nebula
+                                Color(0xFF38BDF8).copy(alpha = 0.18f),
                                 Color.Transparent
                             ),
-                            center = Offset(width * 0.3f + offsetFactor, height * 0.4f),
-                            radius = width * 0.8f
+                            center = Offset(width * 0.18f + offsetFactor, height * 0.28f),
+                            radius = width * 0.72f
                         )
                     )
-
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFF00E5FF).copy(alpha = 0.18f), // Cyan secondary nebula
+                                Color(0xFF22C55E).copy(alpha = 0.10f * pulseAlpha),
                                 Color.Transparent
                             ),
-                            center = Offset(width * 0.8f - offsetFactor, height * 0.6f + offsetFactor),
-                            radius = width * 0.7f
+                            center = Offset(width * 0.82f - offsetFactor, height * 0.58f),
+                            radius = width * 0.56f
                         )
                     )
 
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFFF4081).copy(alpha = 0.12f * pulseAlpha), // Pink cosmic blush
-                                Color.Transparent
-                            ),
-                            center = Offset(width * 0.5f, height * 0.2f),
-                            radius = width * 0.5f
-                        )
-                    )
-
-                    // 3. Draw standard twinkling stars
-                    val starCoordinates = listOf(
-                        Offset(width * 0.12f, height * 0.18f) to 3f,
-                        Offset(width * 0.82f, height * 0.15f) to 2.5f,
-                        Offset(width * 0.35f, height * 0.28f) to 4f,
-                        Offset(width * 0.65f, height * 0.45f) to 1.8f,
-                        Offset(width * 0.15f, height * 0.55f) to 3.5f,
-                        Offset(width * 0.75f, height * 0.65f) to 5f,
-                        Offset(width * 0.28f, height * 0.78f) to 2f,
-                        Offset(width * 0.9f, height * 0.82f) to 4f,
-                        Offset(width * 0.45f, height * 0.9f) to 3.2f,
-                        Offset(width * 0.55f, height * 0.1f) to 3.8f,
-                    )
-
-                    starCoordinates.forEach { (pos, sizeVal) ->
-                        // Calculate pulse scale specifically for this star to avoid uniformity
-                        val pulse = ((Math.sin(((pos.x + pos.y) + (pulseAlpha * 10f)).toDouble()) + 1.0) / 2.0).toFloat()
-                        val currentSize = sizeVal * (0.4f + pulse * 1.2f)
-
-                        // Outer glowing halo
+                    for (idx in 0 until 58) {
+                        val x = width * (((idx * 37) % 100) / 100f)
+                        val y = height * (0.06f + (((idx * 53) % 78) / 100f))
+                        val twinkle = 0.45f + 0.45f * ((Math.sin(idx.toDouble() + pulseAlpha.toDouble() * 6.0) + 1.0) / 2.0).toFloat()
+                        val starSize = 1.0f + ((idx % 5) * 0.45f)
                         drawCircle(
-                            color = Color.White.copy(alpha = 0.15f * pulse),
-                            radius = currentSize * 3.5f,
-                            center = pos
-                        )
-                        // Inner brilliant white core
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.9f),
-                            radius = currentSize,
-                            center = pos
+                            color = Color.White.copy(alpha = twinkle),
+                            radius = starSize,
+                            center = Offset(x, y)
                         )
                     }
 
-                    // 4. Subtle center galaxy dust
+                    drawLine(
+                        color = Color(0xFFA7F3D0).copy(alpha = 0.55f),
+                        start = Offset(width * 0.66f, height * 0.19f),
+                        end = Offset(width * 0.92f, height * 0.10f),
+                        strokeWidth = 2.2f
+                    )
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.05f),
+                                Color(0xFFE0F2FE).copy(alpha = 0.96f),
+                                Color(0xFF7DD3FC).copy(alpha = 0.25f),
                                 Color.Transparent
                             ),
-                            center = Offset(width * 0.5f, height * 0.5f),
-                            radius = width * 0.35f
+                            center = Offset(width * 0.76f, height * 0.28f),
+                            radius = width * 0.13f
                         )
+                    )
+
+                    val planetCenter = Offset(width * 0.5f, height * 1.12f)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF67E8F9).copy(alpha = 0.44f),
+                                Color(0xFF0F766E).copy(alpha = 0.78f),
+                                Color(0xFF031B2E)
+                            ),
+                            center = Offset(width * 0.45f, height * 0.86f),
+                            radius = width * 0.86f
+                        ),
+                        center = planetCenter,
+                        radius = width * 0.78f
+                    )
+                    drawCircle(
+                        color = Color(0xFFBAE6FD).copy(alpha = 0.23f),
+                        center = planetCenter + Offset(0f, -height * 0.04f),
+                        radius = width * 0.66f,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                     )
                 }
             }
             WallpaperType.RAINY -> {
-                // Rainy Window glass bokeh looking at fuzzy warm streetlights
+                // Rainy window with city lights, glass streaks, and a readable horizon.
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val width = size.width
                     val height = size.height
 
-                    // 1. Dark wet rainy night base background
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFF0F172A), // Slate Grey Dark Blue
-                                Color(0xFF020617)  // Deepest obsidian night
+                                Color(0xFF14213D),
+                                Color(0xFF0B1020),
+                                Color(0xFF05060A)
                             )
                         )
                     )
 
-                    // 2. Huge blurry street glass lights (Bokeh circles)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFFFD54F).copy(alpha = 0.15f + offsetFactor * 0.001f), // Fuzzy amber street lamp bokeh
+                                Color(0xFFF59E0B).copy(alpha = 0.28f + offsetFactor * 0.001f),
                                 Color.Transparent
                             ),
-                            center = Offset(width * 0.3f, height * 0.35f),
+                            center = Offset(width * 0.24f, height * 0.34f),
+                            radius = width * 0.34f
+                        )
+                    )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF22D3EE).copy(alpha = 0.22f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.72f, height * 0.42f),
                             radius = width * 0.42f
                         )
                     )
-
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFF14B8A6).copy(alpha = 0.12f), // Fuzzy teal light bokeh
+                                Color(0xFFFB7185).copy(alpha = 0.16f),
                                 Color.Transparent
                             ),
-                            center = Offset(width * 0.75f, height * 0.52f),
-                            radius = width * 0.5f
+                            center = Offset(width * 0.52f, height * 0.66f),
+                            radius = width * 0.28f
                         )
                     )
 
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFEC4899).copy(alpha = 0.08f), // Fuzzy pink signage light bokeh
-                                Color.Transparent
-                            ),
-                            center = Offset(width * 0.55f, height * 0.72f),
-                            radius = width * 0.35f
-                        )
+                    val buildings = listOf(
+                        0.04f to 0.28f, 0.14f to 0.38f, 0.26f to 0.24f, 0.36f to 0.33f,
+                        0.49f to 0.45f, 0.62f to 0.30f, 0.75f to 0.40f, 0.88f to 0.26f
                     )
-
-                    // 3. Render tiny crisp water condensation droplets on foreground pane
-                    val waterDroplets = listOf(
-                        Offset(width * 0.22f, height * 0.15f) to 6f,
-                        Offset(width * 0.76f, height * 0.22f) to 9f,
-                        Offset(width * 0.45f, height * 0.3f) to 5f,
-                        Offset(width * 0.88f, height * 0.4f) to 7f,
-                        Offset(width * 0.18f, height * 0.48f) to 11f,
-                        Offset(width * 0.65f, height * 0.6f) to 5.5f,
-                        Offset(width * 0.32f, height * 0.68f) to 8f,
-                        Offset(width * 0.78f, height * 0.76f) to 12f,
-                        Offset(width * 0.25f, height * 0.85f) to 4.5f,
-                        Offset(width * 0.52f, height * 0.9f) to 10f,
-                        Offset(width * 0.91f, height * 0.62f) to 7.5f,
-                        Offset(width * 0.09f, height * 0.72f) to 6f
-                    )
-
-                    waterDroplets.forEach { (pos, radius) ->
-                        // Simulate water droplet depth: a tiny dark shadow at the bottom right, and a tiny highlight at top-left
-                        // Droplet background tint (inherits background glow with slight lens magnification)
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.15f),
-                            radius = radius,
-                            center = pos
+                    buildings.forEachIndexed { index, (xStart, buildingHeight) ->
+                        val left = width * xStart
+                        val top = height * (0.82f - buildingHeight)
+                        val buildingWidth = width * (0.08f + (index % 3) * 0.018f)
+                        drawRect(
+                            color = Color(0xFF050814).copy(alpha = 0.90f),
+                            topLeft = Offset(left, top),
+                            size = Size(buildingWidth, height - top)
                         )
-                        // Dark border outline
-                        drawCircle(
-                            color = Color.Black.copy(alpha = 0.2f),
-                            radius = radius + 0.5f,
-                            center = pos,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1f)
-                        )
-                        // Tiny sparkling light highlight on edge representing wet condensation
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.75f),
-                            radius = radius * 0.3f,
-                            center = pos + Offset(-radius * 0.35f, -radius * 0.35f)
+                        for (row in 0 until 5) {
+                            val windowY = top + height * 0.035f + row * height * 0.055f
+                            if (windowY < height * 0.78f && (row + index) % 2 == 0) {
+                                drawRect(
+                                    color = Color(0xFFFDE68A).copy(alpha = 0.50f),
+                                    topLeft = Offset(left + buildingWidth * 0.28f, windowY),
+                                    size = Size(buildingWidth * 0.18f, height * 0.014f)
+                                )
+                            }
+                        }
+                    }
+
+                    for (idx in 0 until 30) {
+                        val x = width * (((idx * 29) % 100) / 100f)
+                        val y = height * (((idx * 41) % 94) / 100f)
+                        val len = height * (0.045f + (idx % 4) * 0.014f)
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.18f),
+                            start = Offset(x + offsetFactor * 0.12f, y),
+                            end = Offset(x + width * 0.018f + offsetFactor * 0.12f, y + len),
+                            strokeWidth = 1.4f
                         )
                     }
+
+                    drawLine(Color.White.copy(alpha = 0.16f), Offset(width * 0.50f, 0f), Offset(width * 0.50f, height), 3f)
+                    drawLine(Color.White.copy(alpha = 0.12f), Offset(0f, height * 0.53f), Offset(width, height * 0.53f), 3f)
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.32f)),
+                            startY = height * 0.66f
+                        )
+                    )
                 }
             }
             WallpaperType.COCOA -> {
-                // Warm Organic Cocoa Clay Abstract Landscape shapes
+                // Warm study desk with an open book and cocoa cup.
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val width = size.width
                     val height = size.height
 
-                    // 1. Cozy warm oatmeal sand base background
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFFF7F2EB), // Oatmeal sand cream
-                                Color(0xFFEADBCE)  // Warm beige/clay
+                                Color(0xFFFAE8C8),
+                                Color(0xFFC76D4A),
+                                Color(0xFF582C3A)
                             )
                         )
                     )
 
-                    // 2. Abstract smooth organic nested clay waves and circles
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFD7A88A).copy(alpha = 0.6f), // clay orange
+                                Color(0xFFFFF7ED).copy(alpha = 0.70f * pulseAlpha),
                                 Color.Transparent
                             ),
-                            center = Offset(width * 0.2f + offsetFactor * 0.4f, height * 0.25f),
-                            radius = width * 0.78f
+                            center = Offset(width * 0.22f + offsetFactor * 0.25f, height * 0.22f),
+                            radius = width * 0.46f
                         )
+                    )
+
+                    val desk = Path().apply {
+                        moveTo(0f, height * 0.62f)
+                        cubicTo(width * 0.28f, height * 0.55f, width * 0.70f, height * 0.58f, width, height * 0.50f)
+                        lineTo(width, height)
+                        lineTo(0f, height)
+                        close()
+                    }
+                    drawPath(desk, Color(0xFF2A171C).copy(alpha = 0.78f))
+
+                    val leftPage = Path().apply {
+                        moveTo(width * 0.12f, height * 0.67f)
+                        cubicTo(width * 0.28f, height * 0.58f, width * 0.43f, height * 0.60f, width * 0.50f, height * 0.70f)
+                        lineTo(width * 0.48f, height * 0.91f)
+                        cubicTo(width * 0.34f, height * 0.82f, width * 0.22f, height * 0.84f, width * 0.08f, height * 0.91f)
+                        close()
+                    }
+                    val rightPage = Path().apply {
+                        moveTo(width * 0.50f, height * 0.70f)
+                        cubicTo(width * 0.60f, height * 0.58f, width * 0.78f, height * 0.58f, width * 0.92f, height * 0.67f)
+                        lineTo(width * 0.94f, height * 0.91f)
+                        cubicTo(width * 0.75f, height * 0.84f, width * 0.62f, height * 0.82f, width * 0.52f, height * 0.91f)
+                        close()
+                    }
+                    drawPath(leftPage, Color(0xFFFFF7ED))
+                    drawPath(rightPage, Color(0xFFFFEDD5))
+                    drawLine(
+                        color = Color(0xFF7C2D12).copy(alpha = 0.25f),
+                        start = Offset(width * 0.50f, height * 0.70f),
+                        end = Offset(width * 0.50f, height * 0.92f),
+                        strokeWidth = 2f
                     )
 
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFB18F7B).copy(alpha = 0.4f), // warm cocoa
-                                Color.Transparent
+                                Color(0xFFFFEDD5),
+                                Color(0xFF7C2D12)
                             ),
-                            center = Offset(width * 0.85f, height * 0.7f - offsetFactor * 0.6f),
-                            radius = width * 0.9f
-                        )
+                            center = Offset(width * 0.78f, height * 0.62f),
+                            radius = width * 0.13f
+                        ),
+                        center = Offset(width * 0.78f, height * 0.64f),
+                        radius = width * 0.115f
                     )
-
                     drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFEFD2BD).copy(alpha = 0.75f), // peach clay
-                                Color.Transparent
-                            ),
-                            center = Offset(width * 0.65f, height * 0.45f),
-                            radius = width * 0.5f
-                        )
+                        color = Color(0xFF3B1710).copy(alpha = 0.78f),
+                        center = Offset(width * 0.78f, height * 0.64f),
+                        radius = width * 0.075f
                     )
+                    drawCircle(
+                        color = Color(0xFFFFF7ED).copy(alpha = 0.36f),
+                        center = Offset(width * 0.88f, height * 0.64f),
+                        radius = width * 0.038f,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5f)
+                    )
+                    listOf(0.72f, 0.78f, 0.84f).forEachIndexed { index, x ->
+                        val wave = Path().apply {
+                            moveTo(width * x, height * 0.54f)
+                            cubicTo(width * (x - 0.03f), height * (0.50f - index * 0.01f), width * (x + 0.04f), height * 0.46f, width * x, height * 0.42f)
+                        }
+                        drawPath(
+                            path = wave,
+                            color = Color.White.copy(alpha = 0.32f),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f)
+                        )
+                    }
                 }
             }
             WallpaperType.CUSTOM -> {

@@ -287,7 +287,7 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "自定义环境白噪音、免打扰自动静音及应用锁定限流",
+                    text = "切换背景音会自动试听 3 秒，开始专注后循环播放",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -461,8 +461,8 @@ fun SettingsScreen(
                                     com.example.data.audio.AmbientAudioSynth.SoundType.FAN -> "稳定风扇低鸣，适合遮蔽办公室和宿舍杂音"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.FIREPLACE -> "低沉火焰底噪叠加少量木柴噼啪，适合夜间专注"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.CAFE -> "模拟远处咖啡馆空间底噪，保留轻微人声氛围"
-                                    com.example.data.audio.AmbientAudioSynth.SoundType.SPACE_DRONE -> "低声部合成正弦波，开启全脑深港意识流"
-                                    com.example.data.audio.AmbientAudioSynth.SoundType.FOCUS_PAD -> "无版权合成和弦铺底，像极轻的纯音乐氛围层"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.SPACE_DRONE -> "低声部合成正弦波，营造稳定深空氛围"
+                                    com.example.data.audio.AmbientAudioSynth.SoundType.FOCUS_PAD -> "本机实时合成的原创和弦与轻微琶音，不依赖外部版权曲库"
                                     com.example.data.audio.AmbientAudioSynth.SoundType.CUSTOM -> "播放导入的本地 MP3/WAV 专注曲目，无限心流循环"
                                 }
                                 Text(text = desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -484,7 +484,7 @@ fun SettingsScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        text = if (!customMusicName.isNullOrEmpty()) "当前音频：$customMusicName" else "暂未选择音频文件，播放静音",
+                                        text = if (!customMusicName.isNullOrEmpty()) "当前音频：$customMusicName" else "暂未选择音频文件，开始专注时不会播放",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,

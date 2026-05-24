@@ -100,6 +100,7 @@ class PomodoroViewModel(
     private var customMediaPlayer: android.media.MediaPlayer? = null
     private var toneGenerator: android.media.ToneGenerator? = null
     private var previousInterruptionFilter: Int? = null
+    private var soundPreviewJob: Job? = null
 
     // Sync State
     private val _backupCode = MutableStateFlow<String?>(null)
@@ -250,12 +251,14 @@ class PomodoroViewModel(
         setWallpaper(values[nextOrdinal])
     }
 
-    fun setSoundType(sound: AmbientAudioSynth.SoundType) {
+    fun setSoundType(sound: AmbientAudioSynth.SoundType, previewWhenIdle: Boolean = true) {
         bgSoundType.value = sound
         prefs.edit().putString("selected_sound", sound.name).apply()
 
         // If the timer is actually running, hot-swap the sound playback immediately
         if (_isRunning.value) {
+            soundPreviewJob?.cancel()
+            soundPreviewJob = null
             // Unconditionally stop ongoing synthesis and custom MediaPlayer playback
             AmbientAudioSynth.stop()
             stopCustomMusic()
@@ -267,6 +270,31 @@ class PomodoroViewModel(
                 } else {
                     AmbientAudioSynth.start(sound)
                 }
+            }
+        } else if (previewWhenIdle) {
+            previewSoundSelection(sound)
+        }
+    }
+
+    private fun previewSoundSelection(sound: AmbientAudioSynth.SoundType) {
+        soundPreviewJob?.cancel()
+        soundPreviewJob = null
+        AmbientAudioSynth.stop()
+        stopCustomMusic()
+
+        if (sound == AmbientAudioSynth.SoundType.NONE) return
+
+        if (sound == AmbientAudioSynth.SoundType.CUSTOM) {
+            playCustomMusic()
+        } else {
+            AmbientAudioSynth.start(sound)
+        }
+
+        soundPreviewJob = viewModelScope.launch {
+            delay(3000)
+            if (!_isRunning.value) {
+                AmbientAudioSynth.stop()
+                stopCustomMusic()
             }
         }
     }
@@ -434,6 +462,7 @@ class PomodoroViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        soundPreviewJob?.cancel()
         releaseFocusResources()
         try {
             toneGenerator?.release()
@@ -453,6 +482,8 @@ class PomodoroViewModel(
     fun startTimer() {
         if (_isRunning.value) return
         _isRunning.value = true
+        soundPreviewJob?.cancel()
+        soundPreviewJob = null
 
         // Play synthetic background noise or custom music
         if (bgSoundType.value != AmbientAudioSynth.SoundType.NONE) {
@@ -478,6 +509,8 @@ class PomodoroViewModel(
     fun pauseTimer() {
         _isRunning.value = false
         timerJob?.cancel()
+        soundPreviewJob?.cancel()
+        soundPreviewJob = null
 
         // Stop background sound synthesis
         releaseFocusResources()
