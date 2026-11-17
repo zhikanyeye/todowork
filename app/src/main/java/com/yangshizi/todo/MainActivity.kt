@@ -6,8 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -311,6 +314,47 @@ fun MainAppLayout(viewModel: PomodoroViewModel, returnBufferSeconds: MutableStat
     val strictEnabled by viewModel.strictModeEnabled.collectAsState()
     val immersiveEnabled by viewModel.immersiveFocusEnabled.collectAsState()
     val isStrictActive = strictEnabled && isRunning && !isBreak
+
+    // 启动时静默检查远程更新，有新版本时弹窗提示
+    val updateInfo by viewModel.updateInfo.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.checkForUpdate(manual = false)
+    }
+    updateInfo?.let { release ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissUpdate() },
+            title = { Text("🎉 发现新版本 v${release.versionName}") },
+            text = {
+                Column {
+                    Text(
+                        text = "当前版本 v${com.yangshizi.todo.BuildConfig.VERSION_NAME}，新版本已发布：",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = release.changelog.ifBlank { "点击「前往更新」查看更新内容" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 6,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(release.pageUrl))
+                        )
+                    }
+                    viewModel.dismissUpdate()
+                }) { Text("前往更新") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissUpdate() }) { Text("忽略") }
+            }
+        )
+    }
 
     // Intercept back button during active strict mode focus
     if (isStrictActive) {

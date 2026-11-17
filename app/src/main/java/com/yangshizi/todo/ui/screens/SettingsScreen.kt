@@ -64,6 +64,7 @@ fun SettingsScreen(
 
     val backupCode by viewModel.backupCode.collectAsStateWithLifecycle()
     val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
+    val updateStatus by viewModel.updateStatus.collectAsStateWithLifecycle()
 
     val customWallpaperUri by viewModel.customWallpaperUri.collectAsStateWithLifecycle()
     val customWallpaperList by viewModel.customWallpaperList.collectAsStateWithLifecycle()
@@ -1244,6 +1245,59 @@ fun SettingsScreen(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 关于与更新：显示当前版本，手动检查 GitHub Release 新版本
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceCardVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "ℹ️ 关于与更新",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "洋柿子ToDo v${com.yangshizi.todo.BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "开源协议 Apache License 2.0 · 启动时自动检测新版本",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Button(
+                        onClick = { viewModel.checkForUpdate(manual = true) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("检查更新")
+                    }
+                }
+                updateStatus?.let { status ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(30.dp))
     }
 

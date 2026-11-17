@@ -15,6 +15,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yangshizi.todo.BuildConfig
 import com.yangshizi.todo.data.audio.AmbientAudioSynth
 import com.yangshizi.todo.data.audio.RealAudioPlayer
 import com.yangshizi.todo.data.audio.ToneSynth
@@ -1408,6 +1409,52 @@ class PomodoroViewModel(
             val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             vibrator.cancel()
         }
+    }
+
+    // ---- 远程更新检测 ----
+
+    private val _updateInfo = MutableStateFlow<com.yangshizi.todo.data.update.UpdateChecker.ReleaseInfo?>(null)
+    val updateInfo: StateFlow<com.yangshizi.todo.data.update.UpdateChecker.ReleaseInfo?> = _updateInfo.asStateFlow()
+
+    private val _updateStatus = MutableStateFlow<String?>(null)
+    val updateStatus: StateFlow<String?> = _updateStatus.asStateFlow()
+
+    /** 检查 GitHub Releases 是否有新版本。manual=true 时结果会以状态文本反馈。 */
+    fun checkForUpdate(manual: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (manual) _updateStatus.value = "正在检查更新..."
+            val release = com.yangshizi.todo.data.update.UpdateChecker.fetchLatestRelease()
+            val current = BuildConfig.VERSION_NAME
+            if (release == null) {
+                _updateInfo.value = null
+                if (manual) {
+                    _updateStatus.value = "暂未获取到版本信息，请稍后再试"
+                    delay(2500)
+                    _updateStatus.value = null
+                }
+                return@launch
+            }
+            val hasNewer = com.yangshizi.todo.data.update.UpdateChecker.compareVersions(
+                release.versionName, current
+            ) > 0
+            _updateInfo.value = if (hasNewer) release else null
+            if (manual) {
+                _updateStatus.value = if (hasNewer) {
+                    "发现新版本 v${release.versionName}"
+                } else {
+                    "当前已是最新版本 v$current"
+                }
+                delay(2500)
+                if (_updateStatus.value?.startsWith("当前已") == true || _updateStatus.value?.startsWith("发现") == true) {
+                    _updateStatus.value = null
+                }
+            }
+        }
+    }
+
+    /** 本次会话内忽略更新提示 */
+    fun dismissUpdate() {
+        _updateInfo.value = null
     }
 
     // Cross-platform Backup / Sync Functions
