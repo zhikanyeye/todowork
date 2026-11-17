@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">番茄智伴</string>
+    <string name="app_name">洋柿子ToDo</string>
+    <string name="accessibility_service_desc">洋柿子ToDo专注锁：在专注期间拦截其他App切换，保持心流不被打断。开启后可在严格模式下自动拉回专注界面。</string>
 </resources>

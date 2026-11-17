@@ -19,3 +19,22 @@
 local.properties
 .env
 debug.keystore
+
+# 构建产物与本地日志
+*.apk
+build.log
+build2.log
+build-rename.log
+
+# 本地分析与工具目录（不入库）
+/_apk_analysis/
+/_repo_push/
+/tools/
+/tuoke/
+/music/
+/.build-outputs/
+
+# 助手与临时文件
+/.agents/
+/.codex_write_probe.tmp
+/.zcode/

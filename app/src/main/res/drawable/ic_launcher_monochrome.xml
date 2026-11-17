@@ -4,6 +4,13 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!-- 与前景一致缩进安全区,主题图标(Android 13+)才不会被裁切 -->
+    <group
+        android:scaleX="0.82"
+        android:scaleY="0.82"
+        android:pivotX="54"
+        android:pivotY="54">
+
     <path
         android:fillColor="#FFFFFFFF"
         android:pathData="M54,17 C75,17 91,33 91,54 C91,75 75,91 54,91 C33,91 17,75 17,54 C17,33 33,17 54,17 Z M54,25 C37,25 25,37 25,54 C25,71 37,83 54,83 C71,83 83,71 83,54 C83,37 71,25 54,25 Z" />
@@ -23,4 +30,5 @@
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:pathData="M38,60 C44,51 50,51 54,60 C58,69 64,69 70,60" />
+    </group>
 </vector>

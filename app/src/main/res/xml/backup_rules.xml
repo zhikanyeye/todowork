@@ -1,13 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  控制 Android 11 及以下（API <= 30）的自动备份内容。
+  排除 Room 数据库（任务/专注日志）与 pomodoro_settings（含计时/锁机状态、URI 等），
+  避免任务隐私数据通过 adb backup / 云备份被提取。
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="pomodoro_task_db" />
+    <exclude domain="database" path="pomodoro_task_db-shm" />
+    <exclude domain="database" path="pomodoro_task_db-wal" />
+    <exclude domain="sharedpref" path="pomodoro_settings.xml" />
 </full-backup-content>
