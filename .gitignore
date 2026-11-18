@@ -26,6 +26,11 @@ build.log
 build2.log
 build-rename.log
 
+# 签名密钥与凭据（严禁入库）
+*.jks
+*.jks.b64
+.keystore-secret.txt
+
 # 本地分析与工具目录（不入库）
 /_apk_analysis/
 /_repo_push/
